@@ -23,6 +23,8 @@ class ReelsSaverApp extends StatelessWidget {
             themeMode: themeProvider.mode,
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
+            themeAnimationDuration: const Duration(milliseconds: 350),
+            themeAnimationCurve: Curves.easeInOut,
             home: const SplashScreen(),
           );
         },

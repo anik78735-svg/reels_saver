@@ -11,23 +11,46 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+    with TickerProviderStateMixin {
+  late final AnimationController _logoController;
+  late final AnimationController _fadeController;
   late final Animation<double> _scaleAnim;
+  late final Animation<double> _fadeAnim;
+  late final Animation<double> _taglineFade;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _logoController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 900),
     )..forward();
-    _scaleAnim = CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..forward();
 
-    Timer(const Duration(seconds: 2), () {
+    _scaleAnim = CurvedAnimation(parent: _logoController, curve: Curves.elasticOut);
+    _fadeAnim = CurvedAnimation(
+      parent: _fadeController,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+    );
+    _taglineFade = CurvedAnimation(
+      parent: _fadeController,
+      curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+    );
+
+    Timer(const Duration(milliseconds: 2200), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 500),
+            pageBuilder: (_, anim, __) => const HomeScreen(),
+            transitionsBuilder: (_, anim, __, child) => FadeTransition(
+              opacity: anim,
+              child: child,
+            ),
+          ),
         );
       }
     });
@@ -35,66 +58,108 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _logoController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.white, AppColors.lightPink],
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(gradient: AppColors.bgGradientLight),
           ),
-        ),
-        child: Center(
-          child: ScaleTransition(
-            scale: _scaleAnim,
+          // Decorative soft blobs for depth
+          Positioned(
+            top: -60,
+            right: -60,
+            child: _blob(180, AppColors.lightPink.withOpacity(0.7)),
+          ),
+          Positioned(
+            bottom: -80,
+            left: -80,
+            child: _blob(220, AppColors.lightPink.withOpacity(0.5)),
+          ),
+          Center(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryPink,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primaryPink.withOpacity(0.35),
-                        blurRadius: 24,
-                        offset: const Offset(0, 10),
+                ScaleTransition(
+                  scale: _scaleAnim,
+                  child: Container(
+                    width: 118,
+                    height: 118,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.pinkGradient,
+                      borderRadius: BorderRadius.circular(32),
+                      boxShadow: AppShadows.button,
+                    ),
+                    child: const Icon(Icons.video_collection_rounded,
+                        color: Colors.white, size: 54),
+                  ),
+                ),
+                const SizedBox(height: 28),
+                FadeTransition(
+                  opacity: _fadeAnim,
+                  child: ShaderMask(
+                    shaderCallback: (bounds) =>
+                        AppColors.pinkGradient.createShader(bounds),
+                    child: const Text(
+                      "Reels Saver",
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 0.2,
                       ),
-                    ],
-                  ),
-                  child: const Icon(Icons.download_rounded,
-                      color: Colors.white, size: 56),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  "Reels Saver",
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.deepPink,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  "Save your videos, fast",
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.deepPink.withOpacity(0.6),
+                const SizedBox(height: 10),
+                FadeTransition(
+                  opacity: _taglineFade,
+                  child: Text(
+                    "Save your favorite videos, instantly",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.deepPink.withOpacity(0.55),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
+          Positioned(
+            bottom: 48,
+            left: 0,
+            right: 0,
+            child: FadeTransition(
+              opacity: _taglineFade,
+              child: Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    valueColor: AlwaysStoppedAnimation(AppColors.primaryPink.withOpacity(0.5)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _blob(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }

@@ -82,5 +82,3 @@ save (their own content, or content they have rights to) — not bulk
 scraping or content laundering. Keep the backend to the clean contract
 above and be upfront in your Privacy Policy about what the app fetches
 and stores.
-"# reels_saver" 
-"# reels_saver" 
