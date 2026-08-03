@@ -1,36 +1,20 @@
+from flask import Flask, request, render_template, jsonify, send_file, session
 import os
-import pickle
+import tempfile
+import threading
+import requests
 import json
 import re
-import time
-import shutil
-import tempfile
-import zipfile
-import http.client
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Union
-from urllib.parse import urlparse
-
-# Flask imports
-from flask import Flask, request, render_template, jsonify, send_file, session
-
-# Google Drive imports
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from googleapiclient.errors import HttpError
-
-# Third party imports
 import yt_dlp
 import instaloader
-import requests
 from werkzeug.utils import secure_filename
-
-# ============================================
-# APP INITIALIZATION
-# ============================================
+import zipfile
+import shutil
+import time
+import random
+import http.client
+import subprocess
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-this')
@@ -45,6 +29,11 @@ EXTRACT_DIR = os.path.join(os.getcwd(), 'extractions')
 
 for directory in [DOWNLOAD_DIR, TEMP_DIR, EXTRACT_DIR]:
     os.makedirs(directory, exist_ok=True)
+
+# ============================================
+# RAPIDAPI CONFIGURATION
+# ============================================
+RAPIDAPI_KEY = os.environ.get('RAPIDAPI_KEY', 'e7e2b4ac57mshf5be36f57ac2478p1511dbjsne2dce6703f94')
 
 # ============================================
 # GOOGLE DRIVE MANAGER
@@ -64,9 +53,9 @@ class GoogleDriveManager:
         self.client_id = os.environ.get('GOOGLE_CLIENT_ID')
         self.client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
         self.project_id = os.environ.get('GOOGLE_PROJECT_ID')
-        self.auth_uri = os.environ.get('GOOGLE_AUTH_URI', 'https://accounts.google.com/o/oauth2/auth')
-        self.token_uri = os.environ.get('GOOGLE_TOKEN_URI', 'https://oauth2.googleapis.com/token')
-        self.auth_provider_cert_url = os.environ.get('GOOGLE_AUTH_PROVIDER_CERT_URL', 'https://www.googleapis.com/oauth2/v1/certs')
+        self.auth_uri = os.environ.get('GOOGLE_AUTH_URI')
+        self.token_uri = os.environ.get('GOOGLE_TOKEN_URI')
+        self.auth_provider_cert_url = os.environ.get('GOOGLE_AUTH_PROVIDER_CERT_URL')
         self.redirect_uri = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/drive/callback')
         
         self._load_token()
@@ -107,7 +96,7 @@ class GoogleDriveManager:
         if not self.client_id or not self.client_secret:
             return {
                 'status': 'error',
-                'message': 'Google Drive credentials not configured. Please set environment variables.'
+                'message': 'Google Drive credentials not configured.'
             }
         
         try:
@@ -123,7 +112,7 @@ class GoogleDriveManager:
             return {
                 'status': 'success',
                 'auth_url': auth_url,
-                'message': 'Please visit the URL to authorize the application'
+                'message': 'Please visit the URL to authorize'
             }
         except Exception as e:
             return {'status': 'error', 'message': str(e)}
@@ -131,7 +120,7 @@ class GoogleDriveManager:
     def authenticate_with_code(self, auth_code):
         try:
             if not hasattr(self, '_flow') or not self._flow:
-                return {'status': 'error', 'message': 'No authentication flow initialized. Please call get_auth_url first.'}
+                return {'status': 'error', 'message': 'No authentication flow initialized.'}
             
             self._flow.fetch_token(code=auth_code)
             self.creds = self._flow.credentials
@@ -352,10 +341,9 @@ class TikTokDownloader:
     
     def _download_rapidapi(self, url):
         try:
-            rapidapi_key = os.environ.get('RAPIDAPI_KEY', 'e7e2b4ac57mshf5be36f57ac2478p1511dbjsne2dce6703f94')
             conn = http.client.HTTPSConnection("tiktok-downloader-download-videos-no-watermark1.p.rapidapi.com")
             headers = {
-                'x-rapidapi-key': rapidapi_key,
+                'x-rapidapi-key': RAPIDAPI_KEY,
                 'x-rapidapi-host': "tiktok-downloader-download-videos-no-watermark1.p.rapidapi.com",
             }
             conn.request("GET", f"/video?url={url}", headers=headers)
@@ -377,22 +365,18 @@ class TikTokDownloader:
 tiktok_downloader = TikTokDownloader()
 
 # ============================================
-# YOUTUBE DOWNLOADER - PURE yt-dlp (NO RAPIDAPI)
+# YOUTUBE DOWNLOADER
 # ============================================
 
-def download_youtube_video(url, path):
-    """Download YouTube video using yt-dlp only"""
+def download_youtube_content(url, path):
+    """Download YouTube videos, shorts, playlists"""
     try:
-        print(f"🎯 Downloading YouTube: {url}")
-        
         ydl_opts = {
             'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
             'format': 'best[ext=mp4]/best',
-            'quiet': False,
+            'quiet': True,
             'ignoreerrors': True,
             'retries': 10,
-            'fragment_retries': 10,
-            'extractor_retries': 10,
             'writesubtitles': True,
             'writeautomaticsub': True,
             'subtitleslangs': ['en'],
@@ -402,23 +386,8 @@ def download_youtube_video(url, path):
             }],
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-User': '?1',
-                'Cache-Control': 'max-age=0',
-            },
-            'extractor_args': {
-                'youtube': {
-                    'skip_download': ['false'],
-                    'player_client': ['android', 'web'],
-                    'player_skip': ['configs', 'webpage'],
-                }
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
             }
         }
         
@@ -426,50 +395,35 @@ def download_youtube_video(url, path):
             info = ydl.extract_info(url, download=True)
             
             if 'entries' in info:
+                titles = [entry.get('title', 'Unknown') for entry in info['entries'] if entry]
                 return {
                     'status': 'success',
-                    'message': f'Downloaded {len(info["entries"])} videos from playlist',
+                    'message': f'Downloaded {len(titles)} videos from playlist',
+                    'titles': titles[:5],
                     'type': 'playlist',
-                    'count': len(info["entries"])
+                    'count': len(titles)
                 }
             else:
-                # Find the downloaded file
                 filename = f"{info.get('uploader', 'Unknown')} - {info.get('title', 'video')}.mp4"
                 filepath = os.path.join(path, filename)
-                
-                # Check if file exists
-                if not os.path.exists(filepath):
-                    # Try to find any mp4 file in the directory
-                    for f in os.listdir(path):
-                        if f.endswith('.mp4'):
-                            filepath = os.path.join(path, f)
-                            filename = f
-                            break
-                
                 return {
                     'status': 'success',
-                    'message': 'YouTube video downloaded!',
+                    'message': 'YouTube content downloaded successfully!',
                     'title': info.get('title', 'Unknown'),
                     'uploader': info.get('uploader', 'Unknown'),
+                    'type': 'video',
                     'duration': info.get('duration', 0),
                     'views': info.get('view_count', 0),
-                    'likes': info.get('like_count', 0),
                     'filename': filename,
                     'filepath': filepath,
                     'size': os.path.getsize(filepath) if os.path.exists(filepath) else 0
                 }
-                
     except Exception as e:
-        error_msg = str(e)
-        if 'Sign in' in error_msg or 'bot' in error_msg.lower():
-            return {'status': 'error', 'message': 'YouTube bot detection. Please try again later or use a different video.'}
-        return {'status': 'error', 'message': f'YouTube error: {error_msg[:200]}'}
+        return {'status': 'error', 'message': f'YouTube error: {str(e)}'}
 
 def get_youtube_info(url):
-    """Get YouTube video info using yt-dlp"""
+    """Get YouTube video info"""
     try:
-        print(f"🎯 Getting YouTube info: {url}")
-        
         ydl_opts = {
             'quiet': True,
             'no_warnings': True,
@@ -480,25 +434,11 @@ def get_youtube_info(url):
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.5',
-            },
-            'extractor_args': {
-                'youtube': {
-                    'player_client': ['android', 'web'],
-                    'player_skip': ['configs', 'webpage'],
-                }
             }
         }
-        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             if info:
-                video_url = None
-                if 'entries' in info and info['entries']:
-                    first = info['entries'][0]
-                    video_url = first.get('url') or first.get('webpage_url')
-                else:
-                    video_url = info.get('url') or info.get('webpage_url')
-                
                 return {
                     'status': 'success',
                     'title': info.get('title', 'Unknown'),
@@ -508,17 +448,11 @@ def get_youtube_info(url):
                     'views': info.get('view_count', 0),
                     'likes': info.get('like_count', 0),
                     'platform': 'youtube',
-                    'url': url,
-                    'video_url': video_url
+                    'url': url
                 }
-                
         return {'status': 'error', 'message': 'Could not get YouTube info'}
-        
     except Exception as e:
-        error_msg = str(e)
-        if 'Sign in' in error_msg or 'bot' in error_msg.lower():
-            return {'status': 'error', 'message': 'YouTube bot detection. Please try again later.'}
-        return {'status': 'error', 'message': f'YouTube error: {error_msg[:100]}'}
+        return {'status': 'error', 'message': str(e)}
 
 # ============================================
 # INSTAGRAM DOWNLOADER
@@ -533,43 +467,79 @@ class InstagramDownloader:
             'Accept-Language': 'en-US,en;q=0.5',
         })
     
-    def download(self, url):
+    def download(self, url, path):
         try:
-            ydl_opts = {
-                'outtmpl': os.path.join(TEMP_DIR, 'instagram_%(id)s.%(ext)s'),
-                'format': 'best[ext=mp4]/best',
-                'quiet': True,
-                'ignoreerrors': True,
-                'retries': 5,
-                'timeout': 60,
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                if info:
-                    filename = ydl.prepare_filename(info)
-                    if os.path.exists(filename):
-                        return {
-                            'status': 'success',
-                            'message': 'Instagram video downloaded!',
-                            'title': info.get('title', 'Instagram Video'),
-                            'uploader': info.get('uploader', 'Unknown'),
-                            'filename': os.path.basename(filename),
-                            'filepath': filename,
-                            'size': os.path.getsize(filename)
-                        }
+            loader = instaloader.Instaloader(
+                dirname_pattern=path,
+                filename_pattern='{profile}_{mediaid}_{date_utc}',
+                download_videos=True,
+                download_video_thumbnails=False,
+                download_geotags=False,
+                download_comments=False,
+                save_metadata=True,
+                compress_json=False,
+                post_metadata_txt_pattern=None,
+            )
+            
+            if '/stories/' in url:
+                username = self.extract_instagram_username(url)
+                if username:
+                    profile = instaloader.Profile.from_username(loader.context, username)
+                    for story in loader.get_stories([profile.userid]):
+                        for item in story.get_items():
+                            loader.download_storyitem(item, target=username)
+                    return {
+                        'status': 'success',
+                        'message': f'Instagram stories downloaded for {username}',
+                        'type': 'stories'
+                    }
+            elif '/reel/' in url or '/p/' in url or '/tv/' in url:
+                shortcode = self.extract_instagram_shortcode(url)
+                post = instaloader.Post.from_shortcode(loader.context, shortcode)
+                loader.download_post(post, target=post.owner_username)
+                
+                content_type = 'reel' if post.is_video else 'post'
+                if post.typename == 'GraphSidecar':
+                    content_type = 'carousel'
+                
+                return {
+                    'status': 'success',
+                    'message': f'Instagram {content_type} downloaded successfully!',
+                    'username': post.owner_username,
+                    'caption': post.caption[:100] + '...' if post.caption and len(post.caption) > 100 else post.caption,
+                    'type': content_type,
+                    'likes': post.likes,
+                    'comments': post.comments
+                }
+            else:
+                username = self.extract_instagram_username(url)
+                profile = instaloader.Profile.from_username(loader.context, username)
+                
+                count = 0
+                for post in profile.get_posts():
+                    if count >= 10:
+                        break
+                    loader.download_post(post, target=username)
+                    count += 1
+                
+                return {
+                    'status': 'success',
+                    'message': f'Downloaded {count} recent posts from {username}',
+                    'type': 'profile',
+                    'count': count
+                }
+                
         except Exception as e:
-            print(f"⚠️ Instagram error: {e}")
-        
-        return {'status': 'error', 'message': 'Could not download Instagram video. Please try again in a few minutes.'}
+            return {'status': 'error', 'message': f'Instagram error: {str(e)}'}
     
     def get_preview(self, url):
         try:
-            shortcode = re.search(r'/p/([^/?]+)', url) or re.search(r'/reel/([^/?]+)', url)
+            shortcode = self.extract_instagram_shortcode(url)
             if not shortcode:
                 return {'status': 'error', 'message': 'Invalid Instagram URL'}
             
             loader = instaloader.Instaloader()
-            post = instaloader.Post.from_shortcode(loader.context, shortcode.group(1))
+            post = instaloader.Post.from_shortcode(loader.context, shortcode)
             
             return {
                 'status': 'success',
@@ -584,7 +554,25 @@ class InstagramDownloader:
                 'url': url
             }
         except Exception as e:
-            return {'status': 'error', 'message': f'Could not get Instagram preview: {str(e)}'}
+            return {'status': 'error', 'message': str(e)}
+    
+    def extract_instagram_shortcode(self, url):
+        patterns = [
+            r'/p/([^/?]+)',
+            r'/reel/([^/?]+)',
+            r'/tv/([^/?]+)'
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+        return None
+    
+    def extract_instagram_username(self, url):
+        match = re.search(r'instagram\.com/([^/?]+)', url)
+        if match:
+            return match.group(1)
+        return None
 
 instagram_downloader = InstagramDownloader()
 
@@ -807,6 +795,12 @@ class VideoPreview:
             return 'facebook'
         elif 'reddit.com' in url:
             return 'reddit'
+        elif 'vimeo.com' in url:
+            return 'vimeo'
+        elif 'dailymotion.com' in url:
+            return 'dailymotion'
+        elif 'twitch.tv' in url:
+            return 'twitch'
         else:
             return 'generic'
 
@@ -844,7 +838,7 @@ class UniversalDownloader:
         elif 'twitch.tv' in url:
             return 'twitch'
         else:
-            return 'generic'
+            return 'unknown'
     
     def download_content(self, url, path):
         platform = self.detect_platform(url)
@@ -857,7 +851,7 @@ class UniversalDownloader:
         elif platform == 'instagram':
             return self.download_instagram(url, download_folder)
         elif platform == 'youtube':
-            return download_youtube_video(url, download_folder)
+            return download_youtube_content(url, download_folder)
         elif platform == 'twitter':
             return self.download_twitter(url, download_folder)
         elif platform == 'facebook':
@@ -885,16 +879,7 @@ class UniversalDownloader:
         return {'status': 'error', 'message': 'Failed to download TikTok video'}
     
     def download_instagram(self, url, path):
-        result = instagram_downloader.download(url)
-        if result.get('status') == 'success' and 'filepath' in result:
-            if os.path.exists(result['filepath']):
-                filename = result.get('filename', os.path.basename(result['filepath']))
-                new_path = os.path.join(path, filename)
-                shutil.move(result['filepath'], new_path)
-                result['filepath'] = new_path
-                result['size'] = os.path.getsize(new_path)
-                result['filename'] = filename
-        return result
+        return instagram_downloader.download(url, path)
     
     def _download_video(self, video_url, path, base_name, metadata=None):
         try:
@@ -1516,8 +1501,8 @@ def supported_platforms():
     platforms = {
         'video_platforms': [
             'TikTok (Multi-API)',
-            'YouTube (yt-dlp)',
-            'Instagram (yt-dlp)',
+            'YouTube (Videos, Shorts, Playlists)',
+            'Instagram (Posts, Reels, Stories, IGTV)',
             'Twitter/X',
             'Facebook',
             'Reddit',
@@ -1534,7 +1519,9 @@ def supported_platforms():
             'Audio extraction (MP3)',
             'Thumbnail extraction',
             'Subtitle extraction',
-            'Metadata extraction'
+            'Metadata extraction',
+            'Playlist support',
+            'Stories download'
         ]
     }
     return jsonify(platforms)
@@ -1559,6 +1546,105 @@ def api_docs():
     return jsonify(docs)
 
 # ============================================
+# MCP SERVER ROUTES
+# ============================================
+
+@app.route('/mcp', methods=['POST'])
+def mcp_endpoint():
+    """MCP endpoint for AI model integration"""
+    try:
+        data = request.get_json()
+        method = data.get('method')
+        params = data.get('params', {})
+        req_id = data.get('id')
+        
+        if method == 'tools/list':
+            tools = [
+                {
+                    'name': 'download_video',
+                    'description': 'Download a video from social media',
+                    'parameters': {
+                        'url': {'type': 'string', 'description': 'Video URL'},
+                        'save_to': {'type': 'string', 'description': 'local, gallery, drive'}
+                    }
+                },
+                {
+                    'name': 'preview_video',
+                    'description': 'Get video preview info',
+                    'parameters': {
+                        'url': {'type': 'string', 'description': 'Video URL'}
+                    }
+                },
+                {
+                    'name': 'get_supported_platforms',
+                    'description': 'List supported platforms',
+                    'parameters': {}
+                }
+            ]
+            return jsonify({
+                'jsonrpc': '2.0',
+                'result': {'tools': tools},
+                'id': req_id
+            })
+        
+        elif method == 'tools/call':
+            tool_name = params.get('name')
+            arguments = params.get('arguments', {})
+            
+            if tool_name == 'download_video':
+                url = arguments.get('url')
+                if not url:
+                    return jsonify({'error': 'URL required'}), 400
+                result = downloader.download_content(url, DOWNLOAD_DIR)
+                return jsonify({
+                    'jsonrpc': '2.0',
+                    'result': {'output': result},
+                    'id': req_id
+                })
+            
+            elif tool_name == 'preview_video':
+                url = arguments.get('url')
+                if not url:
+                    return jsonify({'error': 'URL required'}), 400
+                result = preview.get_video_info(url)
+                return jsonify({
+                    'jsonrpc': '2.0',
+                    'result': {'output': result},
+                    'id': req_id
+                })
+            
+            elif tool_name == 'get_supported_platforms':
+                result = supported_platforms()
+                return jsonify({
+                    'jsonrpc': '2.0',
+                    'result': {'output': result},
+                    'id': req_id
+                })
+        
+        return jsonify({
+            'jsonrpc': '2.0',
+            'error': {'code': -32601, 'message': 'Method not found'},
+            'id': req_id
+        }), 400
+        
+    except Exception as e:
+        return jsonify({
+            'jsonrpc': '2.0',
+            'error': {'code': -32603, 'message': str(e)},
+            'id': data.get('id') if data else None
+        }), 500
+
+@app.route('/mcp/tools', methods=['GET'])
+def mcp_tools():
+    """List MCP tools"""
+    tools = [
+        {'name': 'download_video', 'description': 'Download a video from social media'},
+        {'name': 'preview_video', 'description': 'Get video preview info'},
+        {'name': 'get_supported_platforms', 'description': 'List supported platforms'}
+    ]
+    return jsonify({'tools': tools})
+
+# ============================================
 # ERROR HANDLERS
 # ============================================
 
@@ -1577,20 +1663,35 @@ def internal_error(error):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
-    print("🌿 SOCIAL MEDIA DOWNLOADER v2.0")
+    print("🌿 SOCIAL MEDIA DOWNLOADER v2.0 (Complete)")
     print("=" * 60)
     print("📱 Supported Platforms:")
-    print("  • TikTok 🎵 (Multi-API)")
-    print("  • YouTube ▶️ (yt-dlp)")
-    print("  • Instagram 📸 (yt-dlp)")
-    print("  • Twitter/X 🐦 (yt-dlp)")
-    print("  • Facebook 📘 (yt-dlp)")
-    print("  • Reddit 🔴 (yt-dlp)")
-    print("  • Vimeo 🎬 (yt-dlp)")
-    print("  • Dailymotion 🎥 (yt-dlp)")
-    print("  • Twitch 📺 (yt-dlp)")
+    print("  • TikTok 🎵")
+    print("  • YouTube ▶️")
+    print("  • Instagram 📸")
+    print("  • Twitter/X 🐦")
+    print("  • Facebook 📘")
+    print("  • Reddit 🔴")
+    print("  • Vimeo 🎬")
+    print("  • Dailymotion 🎥")
+    print("  • Twitch 📺")
     print("=" * 60)
     print("💾 Save Options: Local | Gallery | Google Drive")
+    print("=" * 60)
+    print("🎯 Features:")
+    print("  • Auto-platform detection")
+    print("  • Bulk downloads")
+    print("  • Video preview")
+    print("  • Gallery save")
+    print("  • Google Drive integration")
+    print("  • Audio extraction (MP3)")
+    print("  • Thumbnail extraction")
+    print("  • Subtitle extraction")
+    print("  • Metadata extraction")
+    print("  • Playlist support")
+    print("  • Stories download")
+    print("  • MCP Server")
+    print("  • REST API")
     print("=" * 60)
     print("📁 Downloads folder:", DOWNLOAD_DIR)
     print("📁 Extractions folder:", EXTRACT_DIR)
