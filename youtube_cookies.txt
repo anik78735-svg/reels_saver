@@ -1,0 +1,11 @@
+# Export cookies from browser using extension like "Get cookies.txt"
+# Or use this in ydl_opts:
+ydl_opts = {
+    ...
+    'cookiefile': 'youtube_cookies.txt',
+    'extractor_args': {
+        'youtube': {
+            'skip_download': ['false'],
+        }
+    }
+}
