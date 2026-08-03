@@ -263,4 +263,76 @@ class SocialDownloaderClient:
         Create a new folder in Google Drive
         
         Args:
-            folder_name: Folder
+            folder_name: Folder name
+            
+        Returns:
+            Created folder info
+        """
+        return self._request(
+            method='POST',
+            endpoint='/drive/folders',
+            data={
+                'action': 'create',
+                'folder_name': folder_name
+            }
+        )
+    
+    def drive_upload(self, filename: str, folder_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Upload a file to Google Drive
+        
+        Args:
+            filename: Name of the file to upload
+            folder_id: Folder ID (uses selected folder if not provided)
+            
+        Returns:
+            Upload result
+        """
+        return self._request(
+            method='POST',
+            endpoint='/drive/upload',
+            data={
+                'filename': filename,
+                'folder_id': folder_id
+            }
+        )
+    
+    # ============================================
+    # UTILITY METHODS
+    # ============================================
+    
+    def get_platforms(self) -> Dict[str, Any]:
+        """
+        Get list of supported platforms
+        
+        Returns:
+            List of platforms
+        """
+        return self._request(
+            method='GET',
+            endpoint='/platforms'
+        )
+    
+    def health_check(self) -> Dict[str, Any]:
+        """
+        Check API health
+        
+        Returns:
+            Health status
+        """
+        return self._request(
+            method='GET',
+            endpoint='/health'
+        )
+    
+    def version(self) -> Dict[str, Any]:
+        """
+        Get API version information
+        
+        Returns:
+            Version info
+        """
+        return self._request(
+            method='GET',
+            endpoint='/version'
+        )
