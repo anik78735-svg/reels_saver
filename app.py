@@ -306,7 +306,7 @@ class TikTokDownloader:
 tiktok_downloader = TikTokDownloader()
 
 # ============================================
-# YOUTUBE DOWNLOADER - FIXED
+# YOUTUBE DOWNLOADER - FINAL FIXED
 # ============================================
 
 def extract_youtube_id(url):
@@ -324,12 +324,43 @@ def extract_youtube_id(url):
             return match.group(1)
     return None
 
+def search_video_url(obj, depth=0):
+    """Recursively search for video URL in nested objects"""
+    if depth > 10:
+        return None
+    
+    if isinstance(obj, dict):
+        # Check common URL keys
+        url_keys = ['video', 'url', 'download', 'downloadUrl', 'play', 'stream', 'link', 'webpage_url']
+        for key in url_keys:
+            if key in obj and obj[key] and isinstance(obj[key], str):
+                if obj[key].startswith('http') and ('.mp4' in obj[key] or 'video' in obj[key]):
+                    return obj[key]
+        
+        # Search nested objects
+        for key, value in obj.items():
+            if isinstance(value, (dict, list)):
+                result = search_video_url(value, depth + 1)
+                if result:
+                    return result
+    
+    elif isinstance(obj, list):
+        for item in obj:
+            result = search_video_url(item, depth + 1)
+            if result:
+                return result
+    
+    return None
+
 def call_youtube_api(video_id):
     """Call YouTube RapidAPI to get video details"""
     
     print(f"🎯 Fetching YouTube video: {video_id}")
+    video_url = None
+    title = "YouTube Video"
+    uploader = "Unknown"
     
-    # Try YouTube138 API with GET
+    # Try YouTube138 API
     try:
         conn = http.client.HTTPSConnection("youtube138.p.rapidapi.com")
         headers = {
@@ -348,56 +379,82 @@ def call_youtube_api(video_id):
             result = json.loads(data)
             print("✅ YouTube API success!")
             
-            video_url = None
-            title = "YouTube Video"
-            uploader = "Unknown"
-            
-            if 'data' in result:
+            if 'data' in result and isinstance(result['data'], dict):
                 data_obj = result['data']
                 
-                # Find video URL
+                # Method 1: Direct 'video' key
                 if 'video' in data_obj and data_obj['video']:
                     video_url = data_obj['video']
-                elif 'download' in data_obj and data_obj['download']:
-                    video_url = data_obj['download']
-                elif 'url' in data_obj and data_obj['url']:
-                    video_url = data_obj['url']
-                elif 'formats' in data_obj:
+                    print("   ✅ Found via 'video' key")
+                
+                # Method 2: 'formats' array
+                elif 'formats' in data_obj and data_obj['formats']:
                     for fmt in data_obj['formats']:
                         if 'url' in fmt:
                             video_url = fmt['url']
+                            print("   ✅ Found via 'formats' array")
                             break
                 
+                # Method 3: 'adaptiveFormats' array
+                elif 'adaptiveFormats' in data_obj and data_obj['adaptiveFormats']:
+                    for fmt in data_obj['adaptiveFormats']:
+                        if 'url' in fmt:
+                            video_url = fmt['url']
+                            print("   ✅ Found via 'adaptiveFormats' array")
+                            break
+                
+                # Method 4: 'download' key
+                elif 'download' in data_obj and data_obj['download']:
+                    video_url = data_obj['download']
+                    print("   ✅ Found via 'download' key")
+                
+                # Method 5: Nested search
+                if not video_url:
+                    print("   🔍 Searching nested objects...")
+                    video_url = search_video_url(data_obj)
+                    if video_url:
+                        print("   ✅ Found via nested search")
+                
                 # Extract title
-                if 'title' in data_obj:
+                if 'title' in data_obj and data_obj['title']:
                     title = data_obj['title']
-                elif 'videoTitle' in data_obj:
+                elif 'videoTitle' in data_obj and data_obj['videoTitle']:
                     title = data_obj['videoTitle']
                 
                 # Extract uploader
-                if 'author' in data_obj:
+                if 'author' in data_obj and data_obj['author']:
                     uploader = data_obj['author']
-                elif 'channelTitle' in data_obj:
+                elif 'channelTitle' in data_obj and data_obj['channelTitle']:
                     uploader = data_obj['channelTitle']
-                elif 'ownerChannelName' in data_obj:
-                    uploader = data_obj['ownerChannelName']
             
-            if video_url:
-                print(f"✅ Video URL found!")
-                return {
-                    'status': 'success',
-                    'video_url': video_url,
-                    'title': title,
-                    'uploader': uploader,
-                    'api': 'youtube138_get'
-                }
-            else:
-                print("⚠️ No video URL found in response")
+            # If still no video URL, log the response structure
+            if not video_url:
+                print("⚠️ No video URL found. Response structure:")
+                if 'data' in result:
+                    print(f"   Data keys: {list(result['data'].keys())}")
+                    # Try to get any URL from the response
+                    for key in result['data']:
+                        if isinstance(result['data'][key], str) and result['data'][key].startswith('http'):
+                            print(f"   Found URL in '{key}': {result['data'][key][:100]}...")
+                            if '.mp4' in result['data'][key] or 'video' in result['data'][key]:
+                                video_url = result['data'][key]
+                                print(f"   ✅ Using URL from '{key}'")
+                                break
                 
     except Exception as e:
         print(f"❌ YouTube API error: {str(e)}")
     
-    # Try alternative API
+    if video_url:
+        print(f"✅ Video URL found!")
+        return {
+            'status': 'success',
+            'video_url': video_url,
+            'title': title,
+            'uploader': uploader,
+            'api': 'youtube138'
+        }
+    
+    # Try Media Downloader API
     try:
         conn = http.client.HTTPSConnection("youtube-media-downloader.p.rapidapi.com")
         headers = {
@@ -416,23 +473,25 @@ def call_youtube_api(video_id):
             result = json.loads(data)
             print("✅ Media Downloader success!")
             
-            video_url = None
-            title = "YouTube Video"
-            uploader = "Unknown"
-            
-            if 'data' in result:
+            if 'data' in result and isinstance(result['data'], dict):
                 data_obj = result['data']
-                if 'video' in data_obj:
+                
+                if 'video' in data_obj and data_obj['video']:
                     video_url = data_obj['video']
-                elif 'downloadUrl' in data_obj:
+                elif 'downloadUrl' in data_obj and data_obj['downloadUrl']:
                     video_url = data_obj['downloadUrl']
+                elif 'download' in data_obj and data_obj['download']:
+                    video_url = data_obj['download']
+                elif 'url' in data_obj and data_obj['url']:
+                    video_url = data_obj['url']
+                
                 if 'title' in data_obj:
                     title = data_obj['title']
                 if 'author' in data_obj:
                     uploader = data_obj['author']
             
             if video_url:
-                print(f"✅ Video URL found!")
+                print(f"✅ Video URL found via Media Downloader!")
                 return {
                     'status': 'success',
                     'video_url': video_url,
@@ -569,7 +628,7 @@ class InstagramDownloader:
         except Exception as e:
             print(f"⚠️ Instagram error: {e}")
         
-        return {'status': 'error', 'message': 'Could not download Instagram video. Instagram has strict rate limiting. Please try again in a few minutes.'}
+        return {'status': 'error', 'message': 'Could not download Instagram video. Please try again in a few minutes.'}
     
     def get_preview(self, url):
         try:
