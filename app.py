@@ -517,6 +517,16 @@ class VideoPreview:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 if info:
+                    # Extract video URL for preview
+                    video_url = None
+                    if 'entries' in info:
+                        # Playlist - get first video
+                        first = info['entries'][0] if info['entries'] else None
+                        if first:
+                            video_url = first.get('url') or first.get('url')
+                    else:
+                        video_url = info.get('url') or info.get('webpage_url')
+                    
                     return {
                         'status': 'success',
                         'title': info.get('title', 'Unknown'),
@@ -527,7 +537,8 @@ class VideoPreview:
                         'likes': info.get('like_count', 0),
                         'description': info.get('description', '')[:200],
                         'platform': platform,
-                        'url': url
+                        'url': url,
+                        'video_url': video_url
                     }
             return {'status': 'error', 'message': 'Could not get video info'}
         except Exception as e:
@@ -718,13 +729,20 @@ class UniversalDownloader:
                         'count': len(info["entries"])
                     }
                 else:
+                    # Get the downloaded filename
+                    filename = f"{info.get('uploader', 'Unknown')} - {info.get('title', 'video')}.mp4"
+                    filepath = os.path.join(path, filename)
+                    
                     return {
                         'status': 'success',
                         'message': 'YouTube video downloaded!',
                         'title': info.get('title', 'Unknown'),
                         'uploader': info.get('uploader', 'Unknown'),
                         'duration': info.get('duration', 0),
-                        'views': info.get('view_count', 0)
+                        'views': info.get('view_count', 0),
+                        'filename': filename,
+                        'filepath': filepath,
+                        'size': os.path.getsize(filepath) if os.path.exists(filepath) else 0
                     }
         except Exception as e:
             return {'status': 'error', 'message': f'YouTube error: {str(e)}'}
@@ -743,13 +761,20 @@ class UniversalDownloader:
             if shortcode:
                 post = instaloader.Post.from_shortcode(loader.context, shortcode.group(1))
                 loader.download_post(post, target=post.owner_username)
-                return {
-                    'status': 'success',
-                    'message': 'Instagram content downloaded!',
-                    'username': post.owner_username,
-                    'likes': post.likes,
-                    'comments': post.comments
-                }
+                
+                # Find the downloaded file
+                for f in os.listdir(path):
+                    if f.endswith('.mp4'):
+                        return {
+                            'status': 'success',
+                            'message': 'Instagram content downloaded!',
+                            'username': post.owner_username,
+                            'likes': post.likes,
+                            'comments': post.comments,
+                            'filename': f,
+                            'filepath': os.path.join(path, f)
+                        }
+                return {'status': 'success', 'message': 'Instagram content downloaded!'}
             return {'status': 'error', 'message': 'Invalid Instagram URL'}
         except Exception as e:
             return {'status': 'error', 'message': f'Instagram error: {str(e)}'}
@@ -767,13 +792,17 @@ class UniversalDownloader:
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                filename = f"Twitter_{info.get('uploader', 'Unknown')}_{info.get('title', 'tweet')}.mp4"
+                filepath = os.path.join(path, filename)
                 return {
                     'status': 'success',
                     'message': 'Twitter content downloaded!',
                     'title': info.get('title', 'Tweet'),
                     'uploader': info.get('uploader', 'Unknown'),
                     'likes': info.get('like_count', 0),
-                    'retweets': info.get('retweet_count', 0)
+                    'retweets': info.get('retweet_count', 0),
+                    'filename': filename,
+                    'filepath': filepath
                 }
         except Exception as e:
             return {'status': 'error', 'message': f'Twitter error: {str(e)}'}
@@ -789,11 +818,15 @@ class UniversalDownloader:
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                filename = f"Facebook_{info.get('title', 'video')}.mp4"
+                filepath = os.path.join(path, filename)
                 return {
                     'status': 'success',
                     'message': 'Facebook video downloaded!',
                     'title': info.get('title', 'Facebook Video'),
-                    'duration': info.get('duration', 0)
+                    'duration': info.get('duration', 0),
+                    'filename': filename,
+                    'filepath': filepath
                 }
         except Exception as e:
             return {'status': 'error', 'message': f'Facebook error: {str(e)}'}
@@ -809,12 +842,16 @@ class UniversalDownloader:
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                filename = f"Reddit_{info.get('title', 'post')}.mp4"
+                filepath = os.path.join(path, filename)
                 return {
                     'status': 'success',
                     'message': 'Reddit content downloaded!',
                     'title': info.get('title', 'Reddit Post'),
                     'ups': info.get('like_count', 0),
-                    'comments': info.get('comment_count', 0)
+                    'comments': info.get('comment_count', 0),
+                    'filename': filename,
+                    'filepath': filepath
                 }
         except Exception as e:
             return {'status': 'error', 'message': f'Reddit error: {str(e)}'}
@@ -830,11 +867,15 @@ class UniversalDownloader:
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                filename = f"Vimeo_{info.get('title', 'video')}.mp4"
+                filepath = os.path.join(path, filename)
                 return {
                     'status': 'success',
                     'message': 'Vimeo video downloaded!',
                     'title': info.get('title', 'Vimeo Video'),
-                    'duration': info.get('duration', 0)
+                    'duration': info.get('duration', 0),
+                    'filename': filename,
+                    'filepath': filepath
                 }
         except Exception as e:
             return {'status': 'error', 'message': f'Vimeo error: {str(e)}'}
@@ -850,11 +891,15 @@ class UniversalDownloader:
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                filename = f"Dailymotion_{info.get('title', 'video')}.mp4"
+                filepath = os.path.join(path, filename)
                 return {
                     'status': 'success',
                     'message': 'Dailymotion video downloaded!',
                     'title': info.get('title', 'Dailymotion Video'),
-                    'duration': info.get('duration', 0)
+                    'duration': info.get('duration', 0),
+                    'filename': filename,
+                    'filepath': filepath
                 }
         except Exception as e:
             return {'status': 'error', 'message': f'Dailymotion error: {str(e)}'}
@@ -870,11 +915,15 @@ class UniversalDownloader:
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                filename = f"Twitch_{info.get('title', 'video')}.mp4"
+                filepath = os.path.join(path, filename)
                 return {
                     'status': 'success',
                     'message': 'Twitch content downloaded!',
                     'title': info.get('title', 'Twitch Video'),
-                    'uploader': info.get('uploader', 'Unknown')
+                    'uploader': info.get('uploader', 'Unknown'),
+                    'filename': filename,
+                    'filepath': filepath
                 }
         except Exception as e:
             return {'status': 'error', 'message': f'Twitch error: {str(e)}'}
@@ -890,11 +939,15 @@ class UniversalDownloader:
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
+                filename = f"{info.get('extractor', 'generic')}_{info.get('title', 'video')}.mp4"
+                filepath = os.path.join(path, filename)
                 return {
                     'status': 'success',
                     'message': 'Content downloaded!',
                     'title': info.get('title', 'Unknown'),
-                    'extractor': info.get('extractor', 'Unknown')
+                    'extractor': info.get('extractor', 'Unknown'),
+                    'filename': filename,
+                    'filepath': filepath
                 }
         except Exception as e:
             return {'status': 'error', 'message': f'Download error: {str(e)}'}
@@ -940,6 +993,9 @@ def download():
                 filepath = result['filepath']
                 filename = result.get('filename', os.path.basename(filepath))
                 
+                # Add filename to result for frontend
+                result['filename'] = filename
+                
                 if save_to == 'gallery':
                     gallery_result = GallerySaver.save_to_gallery(filepath, filename)
                     result['gallery'] = gallery_result
@@ -977,6 +1033,7 @@ def bulk_download():
                 if result['status'] == 'success' and 'filepath' in result:
                     filepath = result['filepath']
                     filename = result.get('filename', os.path.basename(filepath))
+                    result['filename'] = filename
                     
                     if save_to == 'gallery':
                         gallery_result = GallerySaver.save_to_gallery(filepath, filename)
@@ -1439,57 +1496,6 @@ def api_docs():
     return jsonify(docs)
 
 # ============================================
-# API BLUEPRINT REGISTRATION
-# ============================================
-
-from api import api_bp
-app.register_blueprint(api_bp)
-
-# ============================================
-# MCP SERVER
-# ============================================
-
-from mcp import MCPServer
-mcp_server = MCPServer()
-
-@app.route('/mcp', methods=['POST'])
-def mcp_endpoint():
-    """MCP endpoint for AI model integration"""
-    try:
-        data = request.get_json()
-        from mcp.server import MCPRequest
-        
-        req = MCPRequest(
-            method=data.get('method'),
-            params=data.get('params', {}),
-            id=data.get('id')
-        )
-        
-        import asyncio
-        response = asyncio.run(mcp_server.handle_request(req))
-        
-        return jsonify({
-            'jsonrpc': '2.0',
-            'result': response.result if response.result else None,
-            'error': response.error,
-            'id': response.id
-        })
-    except Exception as e:
-        return jsonify({
-            'jsonrpc': '2.0',
-            'error': {
-                'code': -32603,
-                'message': str(e)
-            },
-            'id': data.get('id') if 'data' in locals() else None
-        }), 500
-
-@app.route('/mcp/tools', methods=['GET'])
-def mcp_tools():
-    """List MCP tools"""
-    return jsonify({'tools': mcp_server.get_tools_list()})
-
-# ============================================
 # ERROR HANDLERS
 # ============================================
 
@@ -1537,10 +1543,9 @@ if __name__ == '__main__':
     print("  • Google Drive Integration")
     print("  • REST API")
     print("  • Python SDK")
-    print("  • MCP Server")
     print("=" * 60)
     print("📁 Downloads folder:", DOWNLOAD_DIR)
     print("📁 Extractions folder:", EXTRACT_DIR)
     print("🌐 Server running on: http://localhost:" + str(port))
     print("=" * 60)
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=True)
