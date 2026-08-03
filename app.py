@@ -726,6 +726,7 @@ def not_found(error):
 def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
+
 if __name__ == '__main__':
     print("=" * 60)
     print("🚀 UNIVERSAL SOCIAL MEDIA DOWNLOADER")
@@ -744,16 +745,12 @@ if __name__ == '__main__':
     print("   ✅ TikWM API Integration")
     print("   ✅ No DNS Resolution Required")
     print("   ✅ No Watermark Videos")
-    print("   ✅ Metadata Extraction (Title, Author, Views, Likes)")
-    print("   ✅ Short URL Support (vt.tiktok.com, vm.tiktok.com)")
-    print("=" * 60)
-    print("💡 Supported TikTok URL Formats:")
-    print("   ✅ https://www.tiktok.com/@user/video/123456789")
-    print("   ✅ https://vt.tiktok.com/ZS4AcKLFK/")
-    print("   ✅ https://vm.tiktok.com/ZS4AcKLFK/")
-    print("   ✅ https://www.tiktok.com/t/ZS4AcKLFK/")
     print("=" * 60)
     print(f"📁 Downloads folder: {DOWNLOAD_DIR}")
-    print("🌐 Server running on: http://localhost:5000")
+    
+    # Render deployment
+    port = int(os.environ.get('PORT', 5000))
+    print(f"🌐 Server running on port: {port}")
     print("=" * 60)
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    
+    app.run(host='0.0.0.0', port=port)
