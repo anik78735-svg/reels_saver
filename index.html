@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Social Media Downloader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #0a0a0a;
+            color: white;
+        }
+        .container {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+        h1 {
+            text-align: center;
+            color: #8b5cf6;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #333;
+            border-radius: 5px;
+            background: #111;
+            color: white;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #7c3aed;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        #result.success {
+            display: block;
+            background: #10b981;
+            color: white;
+        }
+        #result.error {
+            display: block;
+            background: #ef4444;
+            color: white;
+        }
+        #result.loading {
+            display: block;
+            background: #f59e0b;
+            color: white;
+        }
+        .platforms {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .platform-tag {
+            display: inline-block;
+            padding: 5px 15px;
+            margin: 5px;
+            background: #2a2a2a;
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid #333;
+        }
+        .metadata {
+            margin-top: 15px;
+            padding: 10px;
+            background: #2a2a2a;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .metadata-item {
+            display: inline-block;
+            margin-right: 20px;
+        }
+        .bulk-area {
+            margin-top: 20px;
+            padding: 20px;
+            background: #111;
+            border-radius: 8px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            background: #0a0a0a;
+            color: white;
+            border: 1px solid #333;
+            border-radius: 5px;
+            font-family: monospace;
+            min-height: 100px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .button-group button {
+            flex: 1;
+        }
+        .btn-secondary {
+            background: #444;
+        }
+        .btn-secondary:hover {
+            background: #555;
+        }
+        .btn-danger {
+            background: #dc2626;
+        }
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📥 Social Media Downloader</h1>
+        <p style="text-align: center; color: #888;">Download videos from TikTok, YouTube, Instagram, Twitter, Facebook, Reddit & more</p>
+        
+        <input type="text" id="urlInput" placeholder="Paste URL here (e.g., https://vt.tiktok.com/xxx)" />
+        <button id="downloadBtn">📥 Download</button>
+        
+        <div id="result"></div>
+        
+        <div class="bulk-area">
+            <h3>📦 Bulk Download</h3>
+            <textarea id="bulkUrls" placeholder="Enter multiple URLs, one per line"></textarea>
+            <div class="button-group">
+                <button id="bulkDownloadBtn" class="btn-secondary">Download All</button>
+                <button id="clearBtn" class="btn-danger">🗑️ Clear</button>
+            </div>
+        </div>
+        
+        <div class="platforms">
+            <span class="platform-tag">🎵 TikTok</span>
+            <span class="platform-tag">▶️ YouTube</span>
+            <span class="platform-tag">📸 Instagram</span>
+            <span class="platform-tag">🐦 Twitter</span>
+            <span class="platform-tag">📘 Facebook</span>
+            <span class="platform-tag">🔴 Reddit</span>
+            <span class="platform-tag">🎬 Vimeo</span>
+        </div>
+    </div>
+
+    <script>
+        const urlInput = document.getElementById('urlInput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const resultDiv = document.getElementById('result');
+        const bulkUrls = document.getElementById('bulkUrls');
+        const bulkDownloadBtn = document.getElementById('bulkDownloadBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        function showResult(message, type) {
+            resultDiv.className = type;
+            resultDiv.innerHTML = message;
+        }
+
+        async function download(url) {
+            if (!url) {
+                showResult('Please enter a URL', 'error');
+                return;
+            }
+
+            downloadBtn.disabled = true;
+            showResult('⏳ Downloading... Please wait', 'loading');
+
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    let html = `<strong>✅ ${data.message}</strong>`;
+                    if (data.title) html += `<div class="metadata"><div class="metadata-item"><strong>Title:</strong> ${data.title}</div>`;
+                    if (data.uploader) html += `<div class="metadata-item"><strong>Uploader:</strong> ${data.uploader}</div>`;
+                    if (data.platform) html += `<div class="metadata-item"><strong>Platform:</strong> ${data.platform.toUpperCase()}</div>`;
+                    if (data.views) html += `<div class="metadata-item"><strong>Views:</strong> ${data.views.toLocaleString()}</div>`;
+                    if (data.likes) html += `<div class="metadata-item"><strong>Likes:</strong> ${data.likes.toLocaleString()}</div>`;
+                    html += `</div>`;
+                    showResult(html, 'success');
+                } else {
+                    showResult(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                downloadBtn.disabled = false;
+            }
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            download(urlInput.value.trim());
+        });
+
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                download(urlInput.value.trim());
+            }
+        });
+
+        bulkDownloadBtn.addEventListener('click', async () => {
+            const urls = bulkUrls.value.split('\n').filter(u => u.trim());
+            if (urls.length === 0) {
+                showResult('Please enter at least one URL', 'error');
+                return;
+            }
+
+            bulkDownloadBtn.disabled = true;
+            showResult(`⏳ Downloading ${urls.length} items...`, 'loading');
+
+            try {
+                const response = await fetch('/bulk-download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls: urls })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    let msg = `${data.message}`;
+                    if (data.results) {
+                        const successes = data.results.filter(r => r.status === 'success').length;
+                        const errors = data.results.filter(r => r.status === 'error').length;
+                        msg += ` (${successes} successful, ${errors} failed)`;
+                    }
+                    showResult(`✅ ${msg}`, 'success');
+                } else {
+                    showResult(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ ${error.message}`, 'error');
+            } finally {
+                bulkDownloadBtn.disabled = false;
+            }
+        });
+
+        clearBtn.addEventListener('click', async () => {
+            if (!confirm('Clear all downloads?')) return;
+            try {
+                const response = await fetch('/clear-downloads', { method: 'POST' });
+                const data = await response.json();
+                showResult(data.status === 'success' ? `✅ ${data.message}` : `❌ ${data.message}`, data.status === 'success' ? 'success' : 'error');
+            } catch (error) {
+                showResult(`❌ ${error.message}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html>
