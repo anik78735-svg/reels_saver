@@ -306,7 +306,7 @@ class TikTokDownloader:
 tiktok_downloader = TikTokDownloader()
 
 # ============================================
-# YOUTUBE DOWNLOADER - FIXED WITH MULTIPLE APIS
+# YOUTUBE DOWNLOADER - FIXED
 # ============================================
 
 def extract_youtube_id(url):
@@ -329,25 +329,92 @@ def call_youtube_api(video_id):
     
     print(f"🎯 Fetching YouTube video: {video_id}")
     
-    # Method 1: YouTube138 API with POST
+    # Try YouTube138 API with GET
     try:
         conn = http.client.HTTPSConnection("youtube138.p.rapidapi.com")
         headers = {
             'x-rapidapi-key': RAPIDAPI_KEY,
             'x-rapidapi-host': "youtube138.p.rapidapi.com",
-            'Content-Type': "application/json"
         }
         
-        payload = json.dumps({"id": video_id, "hl": "en", "gl": "US"})
+        endpoint = f"/video/details/?id={video_id}"
+        print(f"🔄 Trying: {endpoint}")
         
-        print("🔄 Trying YouTube138 API (POST)...")
-        conn.request("POST", "/video/details/", payload, headers)
+        conn.request("GET", endpoint, headers=headers)
         res = conn.getresponse()
         data = res.read().decode("utf-8")
         
         if res.status == 200:
             result = json.loads(data)
-            print("✅ YouTube138 POST success!")
+            print("✅ YouTube API success!")
+            
+            video_url = None
+            title = "YouTube Video"
+            uploader = "Unknown"
+            
+            if 'data' in result:
+                data_obj = result['data']
+                
+                # Find video URL
+                if 'video' in data_obj and data_obj['video']:
+                    video_url = data_obj['video']
+                elif 'download' in data_obj and data_obj['download']:
+                    video_url = data_obj['download']
+                elif 'url' in data_obj and data_obj['url']:
+                    video_url = data_obj['url']
+                elif 'formats' in data_obj:
+                    for fmt in data_obj['formats']:
+                        if 'url' in fmt:
+                            video_url = fmt['url']
+                            break
+                
+                # Extract title
+                if 'title' in data_obj:
+                    title = data_obj['title']
+                elif 'videoTitle' in data_obj:
+                    title = data_obj['videoTitle']
+                
+                # Extract uploader
+                if 'author' in data_obj:
+                    uploader = data_obj['author']
+                elif 'channelTitle' in data_obj:
+                    uploader = data_obj['channelTitle']
+                elif 'ownerChannelName' in data_obj:
+                    uploader = data_obj['ownerChannelName']
+            
+            if video_url:
+                print(f"✅ Video URL found!")
+                return {
+                    'status': 'success',
+                    'video_url': video_url,
+                    'title': title,
+                    'uploader': uploader,
+                    'api': 'youtube138_get'
+                }
+            else:
+                print("⚠️ No video URL found in response")
+                
+    except Exception as e:
+        print(f"❌ YouTube API error: {str(e)}")
+    
+    # Try alternative API
+    try:
+        conn = http.client.HTTPSConnection("youtube-media-downloader.p.rapidapi.com")
+        headers = {
+            'x-rapidapi-key': RAPIDAPI_KEY,
+            'x-rapidapi-host': "youtube-media-downloader.p.rapidapi.com",
+        }
+        
+        endpoint = f"/v2/video/info?id={video_id}"
+        print(f"🔄 Trying Media Downloader: {endpoint}")
+        
+        conn.request("GET", endpoint, headers=headers)
+        res = conn.getresponse()
+        data = res.read().decode("utf-8")
+        
+        if res.status == 200:
+            result = json.loads(data)
+            print("✅ Media Downloader success!")
             
             video_url = None
             title = "YouTube Video"
@@ -357,135 +424,30 @@ def call_youtube_api(video_id):
                 data_obj = result['data']
                 if 'video' in data_obj:
                     video_url = data_obj['video']
+                elif 'downloadUrl' in data_obj:
+                    video_url = data_obj['downloadUrl']
                 if 'title' in data_obj:
                     title = data_obj['title']
                 if 'author' in data_obj:
                     uploader = data_obj['author']
-                elif 'channelTitle' in data_obj:
-                    uploader = data_obj['channelTitle']
             
             if video_url:
+                print(f"✅ Video URL found!")
                 return {
                     'status': 'success',
                     'video_url': video_url,
                     'title': title,
                     'uploader': uploader,
-                    'api': 'youtube138_post'
+                    'api': 'media_downloader'
                 }
-        else:
-            print(f"❌ POST failed: {res.status}")
-            
-    except Exception as e:
-        print(f"❌ YouTube138 POST error: {str(e)}")
-    
-    # Method 2: YouTube138 API with GET
-    try:
-        conn = http.client.HTTPSConnection("youtube138.p.rapidapi.com")
-        headers = {
-            'x-rapidapi-key': RAPIDAPI_KEY,
-            'x-rapidapi-host': "youtube138.p.rapidapi.com",
-        }
-        
-        endpoints = [f"/video/details/?id={video_id}", f"/video/?id={video_id}"]
-        
-        for endpoint in endpoints:
-            try:
-                print(f"🔄 Trying YouTube138 GET: {endpoint}")
-                conn.request("GET", endpoint, headers=headers)
-                res = conn.getresponse()
-                data = res.read().decode("utf-8")
-                
-                if res.status == 200:
-                    result = json.loads(data)
-                    print("✅ YouTube138 GET success!")
-                    
-                    video_url = None
-                    title = "YouTube Video"
-                    uploader = "Unknown"
-                    
-                    if 'data' in result:
-                        data_obj = result['data']
-                        if 'video' in data_obj:
-                            video_url = data_obj['video']
-                        elif 'download' in data_obj:
-                            video_url = data_obj['download']
-                        if 'title' in data_obj:
-                            title = data_obj['title']
-                        if 'author' in data_obj:
-                            uploader = data_obj['author']
-                    
-                    if video_url:
-                        return {
-                            'status': 'success',
-                            'video_url': video_url,
-                            'title': title,
-                            'uploader': uploader,
-                            'api': 'youtube138_get'
-                        }
-            except Exception as e:
-                print(f"❌ Error: {str(e)}")
                 
     except Exception as e:
-        print(f"❌ Connection error: {str(e)}")
+        print(f"❌ Media Downloader error: {str(e)}")
     
-    # Method 3: YouTube Media Downloader
-    try:
-        conn = http.client.HTTPSConnection("youtube-media-downloader.p.rapidapi.com")
-        headers = {
-            'x-rapidapi-key': RAPIDAPI_KEY,
-            'x-rapidapi-host': "youtube-media-downloader.p.rapidapi.com",
-        }
-        
-        endpoints = [
-            f"/v2/video/info?id={video_id}",
-            f"/v2/video/download?id={video_id}",
-            f"/video/info?id={video_id}",
-        ]
-        
-        for endpoint in endpoints:
-            try:
-                print(f"🔄 Trying Media Downloader: {endpoint}")
-                conn.request("GET", endpoint, headers=headers)
-                res = conn.getresponse()
-                data = res.read().decode("utf-8")
-                
-                if res.status == 200:
-                    result = json.loads(data)
-                    print("✅ Media Downloader success!")
-                    
-                    video_url = None
-                    title = "YouTube Video"
-                    uploader = "Unknown"
-                    
-                    if 'data' in result:
-                        data_obj = result['data']
-                        if 'video' in data_obj:
-                            video_url = data_obj['video']
-                        elif 'download' in data_obj:
-                            video_url = data_obj['download']
-                        if 'title' in data_obj:
-                            title = data_obj['title']
-                        if 'author' in data_obj:
-                            uploader = data_obj['author']
-                    
-                    if video_url:
-                        return {
-                            'status': 'success',
-                            'video_url': video_url,
-                            'title': title,
-                            'uploader': uploader,
-                            'api': 'media_downloader'
-                        }
-            except Exception as e:
-                print(f"❌ Error: {str(e)}")
-                
-    except Exception as e:
-        print(f"❌ Connection error: {str(e)}")
-    
-    return {'status': 'error', 'message': 'All YouTube APIs failed'}
+    return {'status': 'error', 'message': 'Could not fetch YouTube video'}
 
 def download_youtube_video(url, path):
-    """Download YouTube video using RapidAPI"""
+    """Download YouTube video"""
     video_id = extract_youtube_id(url)
     if not video_id:
         return {'status': 'error', 'message': 'Invalid YouTube URL'}
@@ -546,41 +508,7 @@ def download_youtube_video(url, path):
         except Exception as e:
             return {'status': 'error', 'message': f'Download error: {str(e)}'}
     
-    # Fallback to yt-dlp
-    print("🔄 Fallback to yt-dlp...")
-    return download_youtube_fallback(url, path)
-
-def download_youtube_fallback(url, path):
-    """Fallback to yt-dlp for YouTube"""
-    try:
-        ydl_opts = {
-            'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
-            'format': 'best[ext=mp4]/best',
-            'quiet': True,
-            'ignoreerrors': True,
-            'retries': 5,
-            'timeout': 60,
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            }
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = f"{info.get('uploader', 'Unknown')} - {info.get('title', 'video')}.mp4"
-            filepath = os.path.join(path, filename)
-            return {
-                'status': 'success',
-                'message': 'YouTube video downloaded! (fallback)',
-                'title': info.get('title', 'Unknown'),
-                'uploader': info.get('uploader', 'Unknown'),
-                'duration': info.get('duration', 0),
-                'views': info.get('view_count', 0),
-                'filename': filename,
-                'filepath': filepath,
-                'size': os.path.getsize(filepath) if os.path.exists(filepath) else 0
-            }
-    except Exception as e:
-        return {'status': 'error', 'message': f'YouTube error: {str(e)}'}
+    return {'status': 'error', 'message': 'YouTube video could not be fetched. Please try again or use a different video.'}
 
 def get_youtube_info(url):
     """Get YouTube video info"""
@@ -1604,7 +1532,7 @@ def supported_platforms():
     platforms = {
         'video_platforms': [
             'TikTok (via TikWM API)',
-            'YouTube (via RapidAPI + Fallback)',
+            'YouTube (via RapidAPI)',
             'Instagram (via yt-dlp)',
             'Twitter/X',
             'Facebook',
@@ -1669,7 +1597,7 @@ if __name__ == '__main__':
     print("=" * 60)
     print("📱 Supported Platforms:")
     print("  • TikTok 🎵 (Working)")
-    print("  • YouTube ▶️ (Working)")
+    print("  • YouTube ▶️ (Working via RapidAPI)")
     print("  • Instagram 📸 (Working)")
     print("  • Twitter/X 🐦 (Working)")
     print("  • Facebook 📘 (Working)")
