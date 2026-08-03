@@ -1,6 +1,7 @@
 import os
 import pickle
 import json
+import base64
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -16,13 +17,42 @@ class GoogleDriveManager:
         self.creds = None
         self.service = None
         self.token_file = 'token.pickle'
-        self.credentials_file = 'credentials.json'
         self.selected_folder_id = None
         self.selected_folder_name = None
         
+        # Load credentials from environment variables
+        self.client_id = os.environ.get('GOOGLE_CLIENT_ID')
+        self.client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+        self.project_id = os.environ.get('GOOGLE_PROJECT_ID')
+        self.auth_uri = os.environ.get('GOOGLE_AUTH_URI')
+        self.token_uri = os.environ.get('GOOGLE_TOKEN_URI')
+        self.auth_provider_cert_url = os.environ.get('GOOGLE_AUTH_PROVIDER_CERT_URL')
+        self.redirect_uri = os.environ.get('GOOGLE_REDIRECT_URI')
+    
+    def get_credentials_config(self):
+        """Get credentials config from environment variables"""
+        return {
+            "web": {
+                "client_id": self.client_id,
+                "project_id": self.project_id,
+                "auth_uri": self.auth_uri,
+                "token_uri": self.token_uri,
+                "auth_provider_x509_cert_url": self.auth_provider_cert_url,
+                "client_secret": self.client_secret,
+                "redirect_uris": [self.redirect_uri or "http://localhost:5000/auth/google/callback"]
+            }
+        }
+    
     def authenticate(self):
-        """Authenticate with Google Drive"""
+        """Authenticate with Google Drive using environment variables"""
         try:
+            # Check if credentials are set
+            if not self.client_id or not self.client_secret:
+                return {
+                    'status': 'error',
+                    'message': 'Google Drive credentials not configured. Please set environment variables.'
+                }
+            
             # Load existing token
             if os.path.exists(self.token_file):
                 with open(self.token_file, 'rb') as token:
@@ -33,14 +63,16 @@ class GoogleDriveManager:
                 if self.creds and self.creds.expired and self.creds.refresh_token:
                     self.creds.refresh(Request())
                 else:
-                    if not os.path.exists(self.credentials_file):
-                        return {
-                            'status': 'error',
-                            'message': 'credentials.json file not found. Please set up Google Drive API.'
-                        }
+                    # Create credentials from environment variables
+                    config = self.get_credentials_config()
                     
-                    flow = InstalledAppFlow.from_client_secrets_file(
-                        self.credentials_file, SCOPES)
+                    # Create flow using the config
+                    flow = InstalledAppFlow.from_client_config(
+                        config,
+                        SCOPES
+                    )
+                    
+                    # Run local server for authentication
                     self.creds = flow.run_local_server(port=0)
                 
                 # Save credentials
@@ -158,22 +190,6 @@ class GoogleDriveManager:
             return {'status': 'error', 'message': f'Drive error: {error}'}
         except Exception as e:
             return {'status': 'error', 'message': str(e)}
-    
-    def get_upload_url(self, file_id):
-        """Get shareable link for uploaded file"""
-        if not self.service:
-            return None
-        
-        try:
-            file = self.service.files().get(
-                fileId=file_id,
-                fields='webViewLink'
-            ).execute()
-            
-            return file.get('webViewLink')
-            
-        except Exception:
-            return None
 
 # Create a singleton instance
 drive_manager = GoogleDriveManager()
