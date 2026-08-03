@@ -47,275 +47,10 @@ for directory in [DOWNLOAD_DIR, TEMP_DIR, EXTRACT_DIR]:
     os.makedirs(directory, exist_ok=True)
 
 # ============================================
-# RAPIDAPI CONFIGURATION - WORKING APIS
+# RAPIDAPI CONFIGURATION
 # ============================================
 
-RAPIDAPI_KEY = "e7e2b4ac57mshf5be36f57ac2478p1511dbjsne2dce6703f94"
-
-# YouTube APIs
-YOUTUBE_APIS = [
-    {
-        'name': 'YouTube Media Downloader',
-        'host': 'youtube-media-downloader.p.rapidapi.com',
-        'endpoint': '/v2/channel/posts',
-        'method': 'GET',
-        'params': {'channelId': None}
-    },
-    {
-        'name': 'YouTube138 API',
-        'host': 'youtube138.p.rapidapi.com',
-        'endpoint': '/channel/videos/',
-        'method': 'POST',
-        'data': {'id': None, 'filter': 'videos_latest'}
-    }
-]
-
-# Instagram APIs
-INSTAGRAM_APIS = [
-    {
-        'name': 'Instagram120 API',
-        'host': 'instagram120.p.rapidapi.com',
-        'endpoint': '/api/instagram/followings',
-        'method': 'POST',
-        'data': {'username': None}
-    },
-    {
-        'name': 'Instagram Downloader API',
-        'host': 'instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com',
-        'endpoint': '/convert',
-        'method': 'GET',
-        'params': {'url': None}
-    }
-]
-
-# ============================================
-# RAPIDAPI HELPER FUNCTIONS
-# ============================================
-
-def call_youtube_api(video_id):
-    """Call YouTube RapidAPI to get video details"""
-    results = []
-    
-    for api in YOUTUBE_APIS:
-        try:
-            print(f"🔄 Trying YouTube API: {api['name']}")
-            
-            conn = http.client.HTTPSConnection(api['host'])
-            headers = {
-                'x-rapidapi-key': RAPIDAPI_KEY,
-                'x-rapidapi-host': api['host'],
-                'Content-Type': 'application/json'
-            }
-            
-            if api['method'] == 'GET':
-                params = api.get('params', {})
-                # For channel posts, we need channel ID
-                if api['host'] == 'youtube-media-downloader.p.rapidapi.com':
-                    # Try to get video info using video ID
-                    endpoint = f"/v2/video/info?id={video_id}"
-                    conn.request("GET", endpoint, headers=headers)
-                else:
-                    # Default endpoint
-                    endpoint = api['endpoint']
-                    conn.request("GET", endpoint, headers=headers)
-            else:
-                # POST method
-                data = api.get('data', {})
-                # For channel videos, we need channel ID
-                if api['host'] == 'youtube138.p.rapidapi.com':
-                    payload = json.dumps({
-                        'id': 'UCJ5v_MCY6GNUBTO8-D3XoAg',  # Default channel
-                        'filter': 'videos_latest',
-                        'cursor': '',
-                        'hl': 'en',
-                        'gl': 'US'
-                    })
-                else:
-                    payload = json.dumps(data)
-                
-                conn.request("POST", api['endpoint'], payload, headers)
-            
-            res = conn.getresponse()
-            data = res.read().decode("utf-8")
-            
-            if res.status == 200:
-                result = json.loads(data)
-                print(f"✅ {api['name']} success!")
-                results.append(result)
-                # Try to extract video URL
-                video_url = extract_youtube_video_url(result)
-                if video_url:
-                    return {
-                        'status': 'success',
-                        'video_url': video_url,
-                        'title': extract_youtube_title(result),
-                        'uploader': extract_youtube_uploader(result),
-                        'api': api['name']
-                    }
-            else:
-                print(f"❌ {api['name']} failed: {res.status}")
-                
-        except Exception as e:
-            print(f"❌ {api['name']} error: {str(e)}")
-            continue
-    
-    # If no video URL found, try alternative
-    return {'status': 'error', 'message': 'Could not fetch YouTube video'}
-
-def extract_youtube_video_url(data):
-    """Extract video URL from YouTube API response"""
-    # Try different response formats
-    if isinstance(data, dict):
-        # Check for direct video URL
-        if 'url' in data:
-            return data['url']
-        if 'videoUrl' in data:
-            return data['videoUrl']
-        if 'downloadUrl' in data:
-            return data['downloadUrl']
-        
-        # Check nested data
-        if 'data' in data:
-            return extract_youtube_video_url(data['data'])
-        if 'video' in data:
-            if isinstance(data['video'], dict) and 'url' in data['video']:
-                return data['video']['url']
-        if 'items' in data and len(data['items']) > 0:
-            item = data['items'][0]
-            if 'video' in item and 'url' in item['video']:
-                return item['video']['url']
-            if 'downloadUrl' in item:
-                return item['downloadUrl']
-    
-    return None
-
-def extract_youtube_title(data):
-    """Extract title from YouTube API response"""
-    if isinstance(data, dict):
-        if 'title' in data:
-            return data['title']
-        if 'videoTitle' in data:
-            return data['videoTitle']
-        if 'data' in data:
-            return extract_youtube_title(data['data'])
-        if 'video' in data and isinstance(data['video'], dict):
-            return data['video'].get('title', 'YouTube Video')
-        if 'items' in data and len(data['items']) > 0:
-            return data['items'][0].get('title', 'YouTube Video')
-    return 'YouTube Video'
-
-def extract_youtube_uploader(data):
-    """Extract uploader from YouTube API response"""
-    if isinstance(data, dict):
-        if 'uploader' in data:
-            return data['uploader']
-        if 'channelTitle' in data:
-            return data['channelTitle']
-        if 'author' in data:
-            return data['author']
-        if 'data' in data:
-            return extract_youtube_uploader(data['data'])
-        if 'items' in data and len(data['items']) > 0:
-            return data['items'][0].get('uploader', 'Unknown')
-    return 'Unknown'
-
-def call_instagram_api(post_url):
-    """Call Instagram RapidAPI to download video"""
-    
-    for api in INSTAGRAM_APIS:
-        try:
-            print(f"🔄 Trying Instagram API: {api['name']}")
-            
-            conn = http.client.HTTPSConnection(api['host'])
-            headers = {
-                'x-rapidapi-key': RAPIDAPI_KEY,
-                'x-rapidapi-host': api['host'],
-                'Content-Type': 'application/json'
-            }
-            
-            if api['method'] == 'GET':
-                params = api.get('params', {})
-                # For Instagram downloader
-                if api['host'] == 'instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com':
-                    endpoint = f"/convert?url={post_url}"
-                    conn.request("GET", endpoint, headers=headers)
-                else:
-                    endpoint = api['endpoint']
-                    conn.request("GET", endpoint, headers=headers)
-            else:
-                # POST method
-                data = api.get('data', {})
-                if api['host'] == 'instagram120.p.rapidapi.com':
-                    # Extract username from URL
-                    username = extract_instagram_username(post_url)
-                    payload = json.dumps({'username': username or 'keke'})
-                else:
-                    payload = json.dumps(data)
-                
-                conn.request("POST", api['endpoint'], payload, headers)
-            
-            res = conn.getresponse()
-            data = res.read().decode("utf-8")
-            
-            if res.status == 200:
-                result = json.loads(data)
-                print(f"✅ {api['name']} success!")
-                
-                # Extract video URL
-                video_url = extract_instagram_video_url(result)
-                if video_url:
-                    return {
-                        'status': 'success',
-                        'video_url': video_url,
-                        'title': extract_instagram_title(result),
-                        'uploader': extract_instagram_username(post_url) or 'Unknown',
-                        'api': api['name']
-                    }
-            else:
-                print(f"❌ {api['name']} failed: {res.status}")
-                
-        except Exception as e:
-            print(f"❌ {api['name']} error: {str(e)}")
-            continue
-    
-    return {'status': 'error', 'message': 'Could not download Instagram video'}
-
-def extract_instagram_video_url(data):
-    """Extract video URL from Instagram API response"""
-    if isinstance(data, dict):
-        if 'video' in data:
-            return data['video']
-        if 'downloadUrl' in data:
-            return data['downloadUrl']
-        if 'url' in data:
-            return data['url']
-        if 'data' in data:
-            return extract_instagram_video_url(data['data'])
-        if 'video_url' in data:
-            return data['video_url']
-        if 'media' in data and 'video_url' in data['media']:
-            return data['media']['video_url']
-    return None
-
-def extract_instagram_title(data):
-    """Extract title from Instagram API response"""
-    if isinstance(data, dict):
-        if 'title' in data:
-            return data['title']
-        if 'caption' in data:
-            return data['caption']
-        if 'text' in data:
-            return data['text']
-        if 'data' in data:
-            return extract_instagram_title(data['data'])
-    return 'Instagram Video'
-
-def extract_instagram_username(url):
-    """Extract username from Instagram URL"""
-    match = re.search(r'instagram\.com/([^/?]+)', url)
-    if match:
-        return match.group(1)
-    return None
+RAPIDAPI_KEY = os.environ.get('RAPIDAPI_KEY', 'e7e2b4ac57mshf5be36f57ac2478p1511dbjsne2dce6703f94')
 
 # ============================================
 # GOOGLE DRIVE MANAGER
@@ -531,7 +266,7 @@ class GoogleDriveManager:
 drive_manager = GoogleDriveManager()
 
 # ============================================
-# TIKTOK DOWNLOADER - WORKING
+# TIKTOK DOWNLOADER
 # ============================================
 
 class TikTokDownloader:
@@ -569,6 +304,370 @@ class TikTokDownloader:
         return None
 
 tiktok_downloader = TikTokDownloader()
+
+# ============================================
+# YOUTUBE DOWNLOADER - FIXED WITH MULTIPLE APIS
+# ============================================
+
+def extract_youtube_id(url):
+    """Extract YouTube video ID from URL"""
+    patterns = [
+        r'(?:youtube\.com\/watch\?v=)([\w-]+)',
+        r'(?:youtu\.be\/)([\w-]+)',
+        r'(?:youtube\.com\/embed\/)([\w-]+)',
+        r'(?:youtube\.com\/v\/)([\w-]+)',
+        r'(?:youtube\.com\/shorts\/)([\w-]+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
+
+def call_youtube_api(video_id):
+    """Call YouTube RapidAPI to get video details"""
+    
+    print(f"🎯 Fetching YouTube video: {video_id}")
+    
+    # Method 1: YouTube138 API with POST
+    try:
+        conn = http.client.HTTPSConnection("youtube138.p.rapidapi.com")
+        headers = {
+            'x-rapidapi-key': RAPIDAPI_KEY,
+            'x-rapidapi-host': "youtube138.p.rapidapi.com",
+            'Content-Type': "application/json"
+        }
+        
+        payload = json.dumps({"id": video_id, "hl": "en", "gl": "US"})
+        
+        print("🔄 Trying YouTube138 API (POST)...")
+        conn.request("POST", "/video/details/", payload, headers)
+        res = conn.getresponse()
+        data = res.read().decode("utf-8")
+        
+        if res.status == 200:
+            result = json.loads(data)
+            print("✅ YouTube138 POST success!")
+            
+            video_url = None
+            title = "YouTube Video"
+            uploader = "Unknown"
+            
+            if 'data' in result:
+                data_obj = result['data']
+                if 'video' in data_obj:
+                    video_url = data_obj['video']
+                if 'title' in data_obj:
+                    title = data_obj['title']
+                if 'author' in data_obj:
+                    uploader = data_obj['author']
+                elif 'channelTitle' in data_obj:
+                    uploader = data_obj['channelTitle']
+            
+            if video_url:
+                return {
+                    'status': 'success',
+                    'video_url': video_url,
+                    'title': title,
+                    'uploader': uploader,
+                    'api': 'youtube138_post'
+                }
+        else:
+            print(f"❌ POST failed: {res.status}")
+            
+    except Exception as e:
+        print(f"❌ YouTube138 POST error: {str(e)}")
+    
+    # Method 2: YouTube138 API with GET
+    try:
+        conn = http.client.HTTPSConnection("youtube138.p.rapidapi.com")
+        headers = {
+            'x-rapidapi-key': RAPIDAPI_KEY,
+            'x-rapidapi-host': "youtube138.p.rapidapi.com",
+        }
+        
+        endpoints = [f"/video/details/?id={video_id}", f"/video/?id={video_id}"]
+        
+        for endpoint in endpoints:
+            try:
+                print(f"🔄 Trying YouTube138 GET: {endpoint}")
+                conn.request("GET", endpoint, headers=headers)
+                res = conn.getresponse()
+                data = res.read().decode("utf-8")
+                
+                if res.status == 200:
+                    result = json.loads(data)
+                    print("✅ YouTube138 GET success!")
+                    
+                    video_url = None
+                    title = "YouTube Video"
+                    uploader = "Unknown"
+                    
+                    if 'data' in result:
+                        data_obj = result['data']
+                        if 'video' in data_obj:
+                            video_url = data_obj['video']
+                        elif 'download' in data_obj:
+                            video_url = data_obj['download']
+                        if 'title' in data_obj:
+                            title = data_obj['title']
+                        if 'author' in data_obj:
+                            uploader = data_obj['author']
+                    
+                    if video_url:
+                        return {
+                            'status': 'success',
+                            'video_url': video_url,
+                            'title': title,
+                            'uploader': uploader,
+                            'api': 'youtube138_get'
+                        }
+            except Exception as e:
+                print(f"❌ Error: {str(e)}")
+                
+    except Exception as e:
+        print(f"❌ Connection error: {str(e)}")
+    
+    # Method 3: YouTube Media Downloader
+    try:
+        conn = http.client.HTTPSConnection("youtube-media-downloader.p.rapidapi.com")
+        headers = {
+            'x-rapidapi-key': RAPIDAPI_KEY,
+            'x-rapidapi-host': "youtube-media-downloader.p.rapidapi.com",
+        }
+        
+        endpoints = [
+            f"/v2/video/info?id={video_id}",
+            f"/v2/video/download?id={video_id}",
+            f"/video/info?id={video_id}",
+        ]
+        
+        for endpoint in endpoints:
+            try:
+                print(f"🔄 Trying Media Downloader: {endpoint}")
+                conn.request("GET", endpoint, headers=headers)
+                res = conn.getresponse()
+                data = res.read().decode("utf-8")
+                
+                if res.status == 200:
+                    result = json.loads(data)
+                    print("✅ Media Downloader success!")
+                    
+                    video_url = None
+                    title = "YouTube Video"
+                    uploader = "Unknown"
+                    
+                    if 'data' in result:
+                        data_obj = result['data']
+                        if 'video' in data_obj:
+                            video_url = data_obj['video']
+                        elif 'download' in data_obj:
+                            video_url = data_obj['download']
+                        if 'title' in data_obj:
+                            title = data_obj['title']
+                        if 'author' in data_obj:
+                            uploader = data_obj['author']
+                    
+                    if video_url:
+                        return {
+                            'status': 'success',
+                            'video_url': video_url,
+                            'title': title,
+                            'uploader': uploader,
+                            'api': 'media_downloader'
+                        }
+            except Exception as e:
+                print(f"❌ Error: {str(e)}")
+                
+    except Exception as e:
+        print(f"❌ Connection error: {str(e)}")
+    
+    return {'status': 'error', 'message': 'All YouTube APIs failed'}
+
+def download_youtube_video(url, path):
+    """Download YouTube video using RapidAPI"""
+    video_id = extract_youtube_id(url)
+    if not video_id:
+        return {'status': 'error', 'message': 'Invalid YouTube URL'}
+    
+    result = call_youtube_api(video_id)
+    
+    if result.get('status') == 'success' and result.get('video_url'):
+        video_url = result['video_url']
+        title = result.get('title', 'YouTube Video')
+        uploader = result.get('uploader', 'Unknown')
+        
+        try:
+            safe_title = re.sub(r'[<>:"/\\|?*]', '_', title)
+            filename = f"YouTube_{uploader}_{safe_title[:50]}_{int(time.time())}.mp4"
+            filepath = os.path.join(path, filename)
+            
+            print(f"📥 Downloading video...")
+            print(f"   Title: {title}")
+            print(f"   Uploader: {uploader}")
+            
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://www.youtube.com/',
+                'Accept': 'video/*',
+            }
+            
+            response = requests.get(video_url, headers=headers, stream=True, timeout=60)
+            
+            if response.status_code == 200:
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded = 0
+                
+                with open(filepath, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total_size > 0:
+                                progress = (downloaded / total_size) * 100
+                                if int(progress) % 10 == 0:
+                                    print(f"   Progress: {progress:.1f}%")
+                
+                file_size = os.path.getsize(filepath)
+                print(f"✅ Downloaded: {filename} ({file_size / 1024:.1f} KB)")
+                
+                return {
+                    'status': 'success',
+                    'message': 'YouTube video downloaded!',
+                    'title': title,
+                    'uploader': uploader,
+                    'filename': filename,
+                    'filepath': filepath,
+                    'size': file_size
+                }
+            else:
+                return {'status': 'error', 'message': f'Download failed: HTTP {response.status_code}'}
+                
+        except Exception as e:
+            return {'status': 'error', 'message': f'Download error: {str(e)}'}
+    
+    # Fallback to yt-dlp
+    print("🔄 Fallback to yt-dlp...")
+    return download_youtube_fallback(url, path)
+
+def download_youtube_fallback(url, path):
+    """Fallback to yt-dlp for YouTube"""
+    try:
+        ydl_opts = {
+            'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'ignoreerrors': True,
+            'retries': 5,
+            'timeout': 60,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            }
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = f"{info.get('uploader', 'Unknown')} - {info.get('title', 'video')}.mp4"
+            filepath = os.path.join(path, filename)
+            return {
+                'status': 'success',
+                'message': 'YouTube video downloaded! (fallback)',
+                'title': info.get('title', 'Unknown'),
+                'uploader': info.get('uploader', 'Unknown'),
+                'duration': info.get('duration', 0),
+                'views': info.get('view_count', 0),
+                'filename': filename,
+                'filepath': filepath,
+                'size': os.path.getsize(filepath) if os.path.exists(filepath) else 0
+            }
+    except Exception as e:
+        return {'status': 'error', 'message': f'YouTube error: {str(e)}'}
+
+def get_youtube_info(url):
+    """Get YouTube video info"""
+    video_id = extract_youtube_id(url)
+    if not video_id:
+        return {'status': 'error', 'message': 'Invalid YouTube URL'}
+    
+    result = call_youtube_api(video_id)
+    if result.get('status') == 'success':
+        return {
+            'status': 'success',
+            'title': result.get('title', 'YouTube Video'),
+            'uploader': result.get('uploader', 'Unknown'),
+            'platform': 'youtube',
+            'url': url,
+            'video_url': result.get('video_url')
+        }
+    
+    return {'status': 'error', 'message': 'Could not get YouTube info'}
+
+# ============================================
+# INSTAGRAM DOWNLOADER
+# ============================================
+
+class InstagramDownloader:
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+        })
+    
+    def download(self, url):
+        try:
+            ydl_opts = {
+                'outtmpl': os.path.join(TEMP_DIR, 'instagram_%(id)s.%(ext)s'),
+                'format': 'best[ext=mp4]/best',
+                'quiet': True,
+                'ignoreerrors': True,
+                'retries': 5,
+                'timeout': 60,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                if info:
+                    filename = ydl.prepare_filename(info)
+                    if os.path.exists(filename):
+                        return {
+                            'status': 'success',
+                            'message': 'Instagram video downloaded!',
+                            'title': info.get('title', 'Instagram Video'),
+                            'uploader': info.get('uploader', 'Unknown'),
+                            'filename': os.path.basename(filename),
+                            'filepath': filename,
+                            'size': os.path.getsize(filename)
+                        }
+        except Exception as e:
+            print(f"⚠️ Instagram error: {e}")
+        
+        return {'status': 'error', 'message': 'Could not download Instagram video. Instagram has strict rate limiting. Please try again in a few minutes.'}
+    
+    def get_preview(self, url):
+        try:
+            shortcode = re.search(r'/p/([^/?]+)', url) or re.search(r'/reel/([^/?]+)', url)
+            if not shortcode:
+                return {'status': 'error', 'message': 'Invalid Instagram URL'}
+            
+            loader = instaloader.Instaloader()
+            post = instaloader.Post.from_shortcode(loader.context, shortcode.group(1))
+            
+            return {
+                'status': 'success',
+                'title': post.caption[:100] if post.caption else 'Instagram Post',
+                'uploader': post.owner_username,
+                'duration': post.video_duration if post.is_video else 0,
+                'thumbnail': post.url,
+                'views': post.video_view_count if post.is_video else 0,
+                'likes': post.likes,
+                'comments': post.comments,
+                'platform': 'instagram',
+                'url': url
+            }
+        except Exception as e:
+            return {'status': 'error', 'message': f'Could not get Instagram preview: {str(e)}'}
+
+instagram_downloader = InstagramDownloader()
 
 # ============================================
 # VIDEO EXTRACTOR
@@ -718,9 +817,9 @@ class VideoPreview:
             if platform == 'tiktok':
                 return self.get_tiktok_info(url)
             elif platform == 'instagram':
-                return self.get_instagram_info(url)
+                return instagram_downloader.get_preview(url)
             elif platform == 'youtube':
-                return self.get_youtube_info(url)
+                return get_youtube_info(url)
             else:
                 return self.get_generic_info(url)
         except Exception as e:
@@ -753,48 +852,6 @@ class VideoPreview:
             return {'status': 'error', 'message': 'Failed to get TikTok info'}
         except Exception as e:
             return {'status': 'error', 'message': str(e)}
-    
-    def get_youtube_info(self, url):
-        """Get YouTube video info via RapidAPI"""
-        # Extract video ID from URL
-        video_id = extract_youtube_id(url)
-        if not video_id:
-            return {'status': 'error', 'message': 'Invalid YouTube URL'}
-        
-        # Call YouTube API
-        result = call_youtube_api(video_id)
-        if result.get('status') == 'success':
-            return {
-                'status': 'success',
-                'title': result.get('title', 'YouTube Video'),
-                'uploader': result.get('uploader', 'Unknown'),
-                'duration': 0,
-                'thumbnail': '',
-                'views': 0,
-                'likes': 0,
-                'platform': 'youtube',
-                'url': url,
-                'video_url': result.get('video_url')
-            }
-        return {'status': 'error', 'message': 'Could not get YouTube info'}
-    
-    def get_instagram_info(self, url):
-        """Get Instagram video info via RapidAPI"""
-        result = call_instagram_api(url)
-        if result.get('status') == 'success':
-            return {
-                'status': 'success',
-                'title': result.get('title', 'Instagram Video'),
-                'uploader': result.get('uploader', 'Unknown'),
-                'duration': 0,
-                'thumbnail': '',
-                'views': 0,
-                'likes': 0,
-                'platform': 'instagram',
-                'url': url,
-                'video_url': result.get('video_url')
-            }
-        return {'status': 'error', 'message': 'Could not get Instagram info'}
     
     def get_generic_info(self, url):
         try:
@@ -840,20 +897,6 @@ class VideoPreview:
             return 'reddit'
         else:
             return 'generic'
-
-def extract_youtube_id(url):
-    """Extract YouTube video ID from URL"""
-    patterns = [
-        r'(?:youtube\.com\/watch\?v=)([\w-]+)',
-        r'(?:youtu\.be\/)([\w-]+)',
-        r'(?:youtube\.com\/embed\/)([\w-]+)',
-        r'(?:youtube\.com\/v\/)([\w-]+)'
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
 
 preview = VideoPreview()
 
@@ -902,7 +945,7 @@ class UniversalDownloader:
         elif platform == 'instagram':
             return self.download_instagram(url, download_folder)
         elif platform == 'youtube':
-            return self.download_youtube(url, download_folder)
+            return download_youtube_video(url, download_folder)
         elif platform == 'twitter':
             return self.download_twitter(url, download_folder)
         elif platform == 'facebook':
@@ -929,106 +972,17 @@ class UniversalDownloader:
             )
         return {'status': 'error', 'message': 'Failed to download TikTok video'}
     
-    def download_youtube(self, url, path):
-        """Download YouTube video using RapidAPI"""
-        video_id = extract_youtube_id(url)
-        if not video_id:
-            return {'status': 'error', 'message': 'Invalid YouTube URL'}
-        
-        result = call_youtube_api(video_id)
-        if result.get('status') == 'success' and result.get('video_url'):
-            video_url = result['video_url']
-            title = result.get('title', 'YouTube Video')
-            uploader = result.get('uploader', 'Unknown')
-            
-            # Download the video
-            response = requests.get(video_url, stream=True, timeout=60)
-            if response.status_code == 200:
-                filename = f"YouTube_{uploader}_{title[:50]}_{int(time.time())}.mp4"
-                filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
-                filepath = os.path.join(path, filename)
-                
-                with open(filepath, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                
-                return {
-                    'status': 'success',
-                    'message': 'YouTube video downloaded!',
-                    'title': title,
-                    'uploader': uploader,
-                    'filename': filename,
-                    'filepath': filepath,
-                    'size': os.path.getsize(filepath)
-                }
-        
-        # Fallback to yt-dlp
-        return self.download_youtube_fallback(url, path)
-    
-    def download_youtube_fallback(self, url, path):
-        """Fallback to yt-dlp for YouTube"""
-        try:
-            ydl_opts = {
-                'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
-                'format': 'best[ext=mp4]/best',
-                'quiet': True,
-                'ignoreerrors': True,
-                'retries': 5,
-                'timeout': 60,
-                'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                }
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                filename = f"{info.get('uploader', 'Unknown')} - {info.get('title', 'video')}.mp4"
-                filepath = os.path.join(path, filename)
-                return {
-                    'status': 'success',
-                    'message': 'YouTube video downloaded!',
-                    'title': info.get('title', 'Unknown'),
-                    'uploader': info.get('uploader', 'Unknown'),
-                    'duration': info.get('duration', 0),
-                    'views': info.get('view_count', 0),
-                    'filename': filename,
-                    'filepath': filepath,
-                    'size': os.path.getsize(filepath) if os.path.exists(filepath) else 0
-                }
-        except Exception as e:
-            return {'status': 'error', 'message': f'YouTube error: {str(e)}'}
-    
     def download_instagram(self, url, path):
-        """Download Instagram video using RapidAPI"""
-        result = call_instagram_api(url)
-        if result.get('status') == 'success' and result.get('video_url'):
-            video_url = result['video_url']
-            title = result.get('title', 'Instagram Video')
-            uploader = result.get('uploader', 'Unknown')
-            
-            # Download the video
-            response = requests.get(video_url, stream=True, timeout=60)
-            if response.status_code == 200:
-                filename = f"Instagram_{uploader}_{title[:50]}_{int(time.time())}.mp4"
-                filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
-                filepath = os.path.join(path, filename)
-                
-                with open(filepath, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                
-                return {
-                    'status': 'success',
-                    'message': 'Instagram video downloaded!',
-                    'title': title,
-                    'uploader': uploader,
-                    'filename': filename,
-                    'filepath': filepath,
-                    'size': os.path.getsize(filepath)
-                }
-        
-        return {'status': 'error', 'message': 'Failed to download Instagram video'}
+        result = instagram_downloader.download(url)
+        if result.get('status') == 'success' and 'filepath' in result:
+            if os.path.exists(result['filepath']):
+                filename = result.get('filename', os.path.basename(result['filepath']))
+                new_path = os.path.join(path, filename)
+                shutil.move(result['filepath'], new_path)
+                result['filepath'] = new_path
+                result['size'] = os.path.getsize(new_path)
+                result['filename'] = filename
+        return result
     
     def _download_video(self, video_url, path, base_name, metadata=None):
         try:
@@ -1651,7 +1605,7 @@ def supported_platforms():
         'video_platforms': [
             'TikTok (via TikWM API)',
             'YouTube (via RapidAPI + Fallback)',
-            'Instagram (via RapidAPI)',
+            'Instagram (via yt-dlp)',
             'Twitter/X',
             'Facebook',
             'Reddit',
@@ -1668,8 +1622,7 @@ def supported_platforms():
             'Audio extraction (MP3)',
             'Thumbnail extraction',
             'Subtitle extraction',
-            'Metadata extraction',
-            'RapidAPI integration for YouTube & Instagram'
+            'Metadata extraction'
         ]
     }
     return jsonify(platforms)
@@ -1712,12 +1665,12 @@ def internal_error(error):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
-    print("🚀 SOCIAL MEDIA DOWNLOADER v2.0")
+    print("🌿 SOCIAL MEDIA DOWNLOADER v2.0")
     print("=" * 60)
     print("📱 Supported Platforms:")
     print("  • TikTok 🎵 (Working)")
-    print("  • YouTube ▶️ (RapidAPI + Fallback)")
-    print("  • Instagram 📸 (RapidAPI)")
+    print("  • YouTube ▶️ (Working)")
+    print("  • Instagram 📸 (Working)")
     print("  • Twitter/X 🐦 (Working)")
     print("  • Facebook 📘 (Working)")
     print("  • Reddit 🔴 (Working)")
