@@ -261,7 +261,325 @@ class GoogleDriveManager:
 drive_manager = GoogleDriveManager()
 
 # ============================================
-# INSTAGRAM DOWNLOADER (FIXED)
+# YOUTUBE DOWNLOADER WITH MULTIPLE METHODS
+# ============================================
+
+class YouTubeDownloader:
+    """YouTube downloader with multiple anti-bot methods"""
+    
+    @staticmethod
+    def download(url, path):
+        """Main YouTube download method"""
+        
+        # Try multiple approaches
+        methods = [
+            YouTubeDownloader._method_cookies,
+            YouTubeDownloader._method_headers,
+            YouTubeDownloader._method_android,
+            YouTubeDownloader._method_ios,
+            YouTubeDownloader._method_oauth,
+            YouTubeDownloader._method_fallback,
+        ]
+        
+        for method in methods:
+            try:
+                print(f"🔄 Trying YouTube method: {method.__name__}")
+                result = method(url, path)
+                if result and result.get('status') == 'success':
+                    print(f"✅ YouTube download success with {method.__name__}")
+                    return result
+            except Exception as e:
+                print(f"❌ {method.__name__} failed: {str(e)[:100]}")
+                continue
+        
+        return {'status': 'error', 'message': 'All YouTube download methods failed. Please try again later or use a different video.'}
+    
+    @staticmethod
+    def _method_cookies(url, path):
+        """Method 1: Use cookies from file"""
+        cookie_files = ['youtube_cookies.txt', 'cookies.txt']
+        cookie_file = None
+        
+        for cf in cookie_files:
+            if os.path.exists(cf):
+                cookie_file = cf
+                break
+        
+        ydl_opts = {
+            'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'ignoreerrors': True,
+            'retries': 30,
+            'fragment_retries': 30,
+            'extractor_retries': 30,
+            'sleep_interval': 5,
+            'max_sleep_interval': 15,
+            'sleep_interval_requests': 3,
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0',
+                'DNT': '1',
+                'Sec-CH-UA': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                'Sec-CH-UA-Mobile': '?0',
+                'Sec-CH-UA-Platform': '"Windows"',
+                'Origin': 'https://www.youtube.com',
+                'Referer': 'https://www.youtube.com/',
+            },
+            'extractor_args': {
+                'youtube': {
+                    'skip_download': ['false'],
+                    'player_client': ['android', 'web', 'ios'],
+                    'player_skip': ['configs', 'webpage', 'js'],
+                    'player_js': ['https://www.youtube.com/s/player/4f0e6d8f/player_ias.vflset/en_US/base.js'],
+                    'player_url': ['https://www.youtube.com/s/player/4f0e6d8f/player_ias.vflset/en_US/base.js'],
+                }
+            }
+        }
+        
+        if cookie_file:
+            ydl_opts['cookiefile'] = cookie_file
+            print(f"✅ Using cookie file: {cookie_file}")
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return YouTubeDownloader._format_result(info, path)
+    
+    @staticmethod
+    def _method_headers(url, path):
+        """Method 2: Use headers only with extended options"""
+        ydl_opts = {
+            'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'ignoreerrors': True,
+            'retries': 30,
+            'fragment_retries': 30,
+            'extractor_retries': 30,
+            'sleep_interval': 5,
+            'max_sleep_interval': 10,
+            'sleep_interval_requests': 2,
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0',
+                'DNT': '1',
+                'Sec-CH-UA': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                'Sec-CH-UA-Mobile': '?0',
+                'Sec-CH-UA-Platform': '"Windows"',
+                'Origin': 'https://www.youtube.com',
+                'Referer': 'https://www.youtube.com/',
+            },
+            'extractor_args': {
+                'youtube': {
+                    'skip_download': ['false'],
+                    'player_client': ['android', 'web', 'ios'],
+                    'player_skip': ['configs', 'webpage'],
+                    'player_js': ['https://www.youtube.com/s/player/4f0e6d8f/player_ias.vflset/en_US/base.js'],
+                    'player_url': ['https://www.youtube.com/s/player/4f0e6d8f/player_ias.vflset/en_US/base.js'],
+                }
+            }
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return YouTubeDownloader._format_result(info, path)
+    
+    @staticmethod
+    def _method_android(url, path):
+        """Method 3: Use Android client"""
+        ydl_opts = {
+            'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'ignoreerrors': True,
+            'retries': 20,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['android'],
+                    'player_skip': ['configs', 'webpage'],
+                    'skip_download': ['false'],
+                }
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            },
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return YouTubeDownloader._format_result(info, path)
+    
+    @staticmethod
+    def _method_ios(url, path):
+        """Method 4: Use iOS client"""
+        ydl_opts = {
+            'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'ignoreerrors': True,
+            'retries': 20,
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['ios'],
+                    'player_skip': ['configs', 'webpage'],
+                    'skip_download': ['false'],
+                }
+            },
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+            },
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return YouTubeDownloader._format_result(info, path)
+    
+    @staticmethod
+    def _method_oauth(url, path):
+        """Method 5: Use OAuth credentials"""
+        username = os.environ.get('YOUTUBE_USERNAME')
+        password = os.environ.get('YOUTUBE_PASSWORD')
+        
+        if not username or not password:
+            raise Exception("No YouTube credentials provided")
+        
+        ydl_opts = {
+            'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'ignoreerrors': True,
+            'retries': 20,
+            'username': username,
+            'password': password,
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return YouTubeDownloader._format_result(info, path)
+    
+    @staticmethod
+    def _method_fallback(url, path):
+        """Method 6: Fallback with simpler options"""
+        ydl_opts = {
+            'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
+            'format': 'best[ext=mp4]/best',
+            'quiet': True,
+            'ignoreerrors': True,
+            'retries': 10,
+            'writesubtitles': True,
+            'writeautomaticsub': True,
+            'subtitleslangs': ['en'],
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            },
+        }
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            return YouTubeDownloader._format_result(info, path)
+    
+    @staticmethod
+    def _format_result(info, path):
+        """Format the download result"""
+        if 'entries' in info:
+            return {
+                'status': 'success',
+                'message': f'Downloaded {len(info["entries"])} videos from playlist',
+                'type': 'playlist',
+                'count': len(info["entries"])
+            }
+        else:
+            filename = f"{info.get('uploader', 'Unknown')} - {info.get('title', 'video')}.mp4"
+            filepath = os.path.join(path, filename)
+            return {
+                'status': 'success',
+                'message': 'YouTube video downloaded!',
+                'title': info.get('title', 'Unknown'),
+                'uploader': info.get('uploader', 'Unknown'),
+                'duration': info.get('duration', 0),
+                'views': info.get('view_count', 0),
+                'likes': info.get('like_count', 0),
+                'filename': filename,
+                'filepath': filepath,
+                'size': os.path.getsize(filepath) if os.path.exists(filepath) else 0
+            }
+
+# ============================================
+# INSTAGRAM DOWNLOADER
 # ============================================
 
 class InstagramDownloader:
@@ -537,7 +855,6 @@ class VideoExtractor:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([filepath])
             
-            # Find the actual file
             for f in os.listdir(output_dir):
                 if f.startswith(name_without_ext) and f.endswith('.mp3'):
                     return {'status': 'success', 'audio_path': os.path.join(output_dir, f)}
@@ -646,6 +963,8 @@ class VideoPreview:
                 return self.get_tiktok_info(url)
             elif platform == 'instagram':
                 return instagram_downloader.get_preview(url)
+            elif platform == 'youtube':
+                return self.get_youtube_info(url)
             
             ydl_opts = {
                 'quiet': True,
@@ -680,6 +999,47 @@ class VideoPreview:
                         'video_url': video_url
                     }
             return {'status': 'error', 'message': 'Could not get video info'}
+        except Exception as e:
+            return {'status': 'error', 'message': str(e)}
+    
+    def get_youtube_info(self, url):
+        """Get YouTube video info with anti-bot measures"""
+        try:
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'extract_flat': False,
+                'format': 'best',
+                'ignoreerrors': True,
+                'cookiefile': 'youtube_cookies.txt' if os.path.exists('youtube_cookies.txt') else None,
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                },
+                'extractor_args': {
+                    'youtube': {
+                        'player_client': ['android', 'web'],
+                        'player_skip': ['configs', 'webpage'],
+                    }
+                }
+            }
+            
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if info:
+                    return {
+                        'status': 'success',
+                        'title': info.get('title', 'Unknown'),
+                        'uploader': info.get('uploader', 'Unknown'),
+                        'duration': info.get('duration', 0),
+                        'thumbnail': info.get('thumbnail', ''),
+                        'views': info.get('view_count', 0),
+                        'likes': info.get('like_count', 0),
+                        'platform': 'youtube',
+                        'url': url
+                    }
+            return {'status': 'error', 'message': 'Could not get YouTube info'}
         except Exception as e:
             return {'status': 'error', 'message': str(e)}
     
@@ -776,7 +1136,7 @@ class UniversalDownloader:
         elif platform == 'instagram':
             return self.download_instagram(url, download_folder)
         elif platform == 'youtube':
-            return self.download_youtube(url, download_folder)
+            return YouTubeDownloader.download(url, download_folder)
         elif platform == 'twitter':
             return self.download_twitter(url, download_folder)
         elif platform == 'facebook':
@@ -806,7 +1166,6 @@ class UniversalDownloader:
     def download_instagram(self, url, path):
         result = instagram_downloader.download(url)
         if result.get('status') == 'success':
-            # Move file from temp to download folder
             if 'filepath' in result and os.path.exists(result['filepath']):
                 filename = result.get('filename', os.path.basename(result['filepath']))
                 new_path = os.path.join(path, filename)
@@ -852,48 +1211,6 @@ class UniversalDownloader:
             return {'status': 'error', 'message': f'Download failed: HTTP {response.status_code}'}
         except Exception as e:
             return {'status': 'error', 'message': str(e)}
-    
-    def download_youtube(self, url, path):
-        try:
-            ydl_opts = {
-                'outtmpl': os.path.join(path, '%(uploader)s - %(title)s.%(ext)s'),
-                'format': 'best[ext=mp4]/best',
-                'quiet': True,
-                'ignoreerrors': True,
-                'retries': 10,
-                'writesubtitles': True,
-                'writeautomaticsub': True,
-                'subtitleslangs': ['en'],
-                'postprocessors': [{
-                    'key': 'FFmpegVideoConvertor',
-                    'preferedformat': 'mp4',
-                }],
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                if 'entries' in info:
-                    return {
-                        'status': 'success',
-                        'message': f'Downloaded {len(info["entries"])} videos from playlist',
-                        'type': 'playlist',
-                        'count': len(info["entries"])
-                    }
-                else:
-                    filename = f"{info.get('uploader', 'Unknown')} - {info.get('title', 'video')}.mp4"
-                    filepath = os.path.join(path, filename)
-                    return {
-                        'status': 'success',
-                        'message': 'YouTube video downloaded!',
-                        'title': info.get('title', 'Unknown'),
-                        'uploader': info.get('uploader', 'Unknown'),
-                        'duration': info.get('duration', 0),
-                        'views': info.get('view_count', 0),
-                        'filename': filename,
-                        'filepath': filepath,
-                        'size': os.path.getsize(filepath) if os.path.exists(filepath) else 0
-                    }
-        except Exception as e:
-            return {'status': 'error', 'message': f'YouTube error: {str(e)}'}
     
     def download_twitter(self, url, path):
         try:
@@ -1495,7 +1812,8 @@ def supported_platforms():
             'Thumbnail extraction',
             'Subtitle extraction',
             'Metadata extraction',
-            'High quality downloads'
+            'High quality downloads',
+            'Multi-method YouTube downloader'
         ]
     }
     return jsonify(platforms)
@@ -1543,7 +1861,7 @@ if __name__ == '__main__':
     print("=" * 60)
     print("📱 Supported Platforms:")
     print("  • TikTok 🎵")
-    print("  • YouTube ▶️")
+    print("  • YouTube ▶️ (Multi-method downloader)")
     print("  • Instagram 📸 (Rate limited - use carefully)")
     print("  • Twitter/X 🐦")
     print("  • Facebook 📘")
@@ -1563,6 +1881,7 @@ if __name__ == '__main__':
     print("  • Metadata Extraction")
     print("  • Google Drive Integration")
     print("  • REST API")
+    print("  • 6 YouTube Download Methods")
     print("=" * 60)
     print("📁 Downloads folder:", DOWNLOAD_DIR)
     print("📁 Extractions folder:", EXTRACT_DIR)
