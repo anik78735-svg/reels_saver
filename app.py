@@ -266,17 +266,51 @@ class GoogleDriveManager:
 drive_manager = GoogleDriveManager()
 
 # ============================================
-# TIKTOK DOWNLOADER
+# TIKTOK DOWNLOADER - FIXED WITH MULTIPLE METHODS
 # ============================================
 
 class TikTokDownloader:
     def __init__(self):
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
         })
     
     def download(self, url):
+        """Try multiple methods to download TikTok video"""
+        
+        methods = [
+            self._download_tikwm,
+            self._download_ytdlp,
+            self._download_rapidapi,
+            self._download_ssstik,
+        ]
+        
+        for method in methods:
+            try:
+                print(f"🔄 Trying {method.__name__}...")
+                result = method(url)
+                if result and result.get('video_url'):
+                    print(f"✅ {method.__name__} success!")
+                    return result
+            except Exception as e:
+                print(f"❌ {method.__name__} error: {str(e)}")
+                continue
+        
+        return None
+    
+    def _download_tikwm(self, url):
+        """Method 1: TikWM API"""
         try:
             response = self.session.get(
                 'https://www.tikwm.com/api/',
@@ -300,13 +334,89 @@ class TikTokDownloader:
                             'thumbnail': video_data.get('cover', '')
                         }
         except Exception as e:
-            print(f"❌ TikTok error: {e}")
+            print(f"TikWM error: {e}")
+        return None
+    
+    def _download_ytdlp(self, url):
+        """Method 2: yt-dlp"""
+        try:
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'format': 'best',
+                'extract_flat': False,
+                'ignoreerrors': True,
+                'retries': 10,
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                }
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if info and info.get('url'):
+                    return {
+                        'video_url': info['url'],
+                        'title': info.get('title', 'TikTok Video'),
+                        'author': info.get('uploader', 'Unknown'),
+                        'duration': info.get('duration', 0),
+                        'views': info.get('view_count', 0),
+                        'likes': info.get('like_count', 0),
+                    }
+        except Exception as e:
+            print(f"yt-dlp error: {e}")
+        return None
+    
+    def _download_rapidapi(self, url):
+        """Method 3: RapidAPI"""
+        try:
+            conn = http.client.HTTPSConnection("tiktok-downloader-download-videos-no-watermark1.p.rapidapi.com")
+            headers = {
+                'x-rapidapi-key': RAPIDAPI_KEY,
+                'x-rapidapi-host': "tiktok-downloader-download-videos-no-watermark1.p.rapidapi.com",
+            }
+            conn.request("GET", f"/video?url={url}", headers=headers)
+            res = conn.getresponse()
+            data = res.read().decode("utf-8")
+            
+            if res.status == 200:
+                result = json.loads(data)
+                if 'data' in result and 'video' in result['data']:
+                    return {
+                        'video_url': result['data']['video'],
+                        'title': result['data'].get('title', 'TikTok Video'),
+                        'author': result['data'].get('author', {}).get('unique_id', 'Unknown'),
+                    }
+        except Exception as e:
+            print(f"RapidAPI error: {e}")
+        return None
+    
+    def _download_ssstik(self, url):
+        """Method 4: SSSTikTok API"""
+        try:
+            response = self.session.post(
+                'https://ssstik.io/api',
+                data={'url': url},
+                timeout=30
+            )
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('video'):
+                    return {
+                        'video_url': result['video'],
+                        'title': result.get('title', 'TikTok Video'),
+                        'author': result.get('author', 'Unknown'),
+                        'duration': result.get('duration', 0),
+                        'views': result.get('views', 0),
+                        'likes': result.get('likes', 0),
+                    }
+        except Exception as e:
+            print(f"SSSTikTok error: {e}")
         return None
 
 tiktok_downloader = TikTokDownloader()
 
 # ============================================
-# YOUTUBE DOWNLOADER - FINAL FIXED
+# YOUTUBE DOWNLOADER - FIXED
 # ============================================
 
 def extract_youtube_id(url):
@@ -322,34 +432,6 @@ def extract_youtube_id(url):
         match = re.search(pattern, url)
         if match:
             return match.group(1)
-    return None
-
-def search_video_url(obj, depth=0):
-    """Recursively search for video URL in nested objects"""
-    if depth > 10:
-        return None
-    
-    if isinstance(obj, dict):
-        # Check common URL keys
-        url_keys = ['video', 'url', 'download', 'downloadUrl', 'play', 'stream', 'link', 'webpage_url']
-        for key in url_keys:
-            if key in obj and obj[key] and isinstance(obj[key], str):
-                if obj[key].startswith('http') and ('.mp4' in obj[key] or 'video' in obj[key]):
-                    return obj[key]
-        
-        # Search nested objects
-        for key, value in obj.items():
-            if isinstance(value, (dict, list)):
-                result = search_video_url(value, depth + 1)
-                if result:
-                    return result
-    
-    elif isinstance(obj, list):
-        for item in obj:
-            result = search_video_url(item, depth + 1)
-            if result:
-                return result
-    
     return None
 
 def call_youtube_api(video_id):
@@ -427,19 +509,10 @@ def call_youtube_api(video_id):
                 elif 'channelTitle' in data_obj and data_obj['channelTitle']:
                     uploader = data_obj['channelTitle']
             
-            # If still no video URL, log the response structure
             if not video_url:
                 print("⚠️ No video URL found. Response structure:")
                 if 'data' in result:
                     print(f"   Data keys: {list(result['data'].keys())}")
-                    # Try to get any URL from the response
-                    for key in result['data']:
-                        if isinstance(result['data'][key], str) and result['data'][key].startswith('http'):
-                            print(f"   Found URL in '{key}': {result['data'][key][:100]}...")
-                            if '.mp4' in result['data'][key] or 'video' in result['data'][key]:
-                                video_url = result['data'][key]
-                                print(f"   ✅ Using URL from '{key}'")
-                                break
                 
     except Exception as e:
         print(f"❌ YouTube API error: {str(e)}")
@@ -454,56 +527,33 @@ def call_youtube_api(video_id):
             'api': 'youtube138'
         }
     
-    # Try Media Downloader API
-    try:
-        conn = http.client.HTTPSConnection("youtube-media-downloader.p.rapidapi.com")
-        headers = {
-            'x-rapidapi-key': RAPIDAPI_KEY,
-            'x-rapidapi-host': "youtube-media-downloader.p.rapidapi.com",
-        }
-        
-        endpoint = f"/v2/video/info?id={video_id}"
-        print(f"🔄 Trying Media Downloader: {endpoint}")
-        
-        conn.request("GET", endpoint, headers=headers)
-        res = conn.getresponse()
-        data = res.read().decode("utf-8")
-        
-        if res.status == 200:
-            result = json.loads(data)
-            print("✅ Media Downloader success!")
-            
-            if 'data' in result and isinstance(result['data'], dict):
-                data_obj = result['data']
-                
-                if 'video' in data_obj and data_obj['video']:
-                    video_url = data_obj['video']
-                elif 'downloadUrl' in data_obj and data_obj['downloadUrl']:
-                    video_url = data_obj['downloadUrl']
-                elif 'download' in data_obj and data_obj['download']:
-                    video_url = data_obj['download']
-                elif 'url' in data_obj and data_obj['url']:
-                    video_url = data_obj['url']
-                
-                if 'title' in data_obj:
-                    title = data_obj['title']
-                if 'author' in data_obj:
-                    uploader = data_obj['author']
-            
-            if video_url:
-                print(f"✅ Video URL found via Media Downloader!")
-                return {
-                    'status': 'success',
-                    'video_url': video_url,
-                    'title': title,
-                    'uploader': uploader,
-                    'api': 'media_downloader'
-                }
-                
-    except Exception as e:
-        print(f"❌ Media Downloader error: {str(e)}")
-    
     return {'status': 'error', 'message': 'Could not fetch YouTube video'}
+
+def search_video_url(obj, depth=0):
+    """Recursively search for video URL in nested objects"""
+    if depth > 10:
+        return None
+    
+    if isinstance(obj, dict):
+        url_keys = ['video', 'url', 'download', 'downloadUrl', 'play', 'stream', 'link']
+        for key in url_keys:
+            if key in obj and obj[key] and isinstance(obj[key], str):
+                if obj[key].startswith('http') and ('.mp4' in obj[key] or 'video' in obj[key]):
+                    return obj[key]
+        
+        for key, value in obj.items():
+            if isinstance(value, (dict, list)):
+                result = search_video_url(value, depth + 1)
+                if result:
+                    return result
+    
+    elif isinstance(obj, list):
+        for item in obj:
+            result = search_video_url(item, depth + 1)
+            if result:
+                return result
+    
+    return None
 
 def download_youtube_video(url, path):
     """Download YouTube video"""
@@ -567,7 +617,7 @@ def download_youtube_video(url, path):
         except Exception as e:
             return {'status': 'error', 'message': f'Download error: {str(e)}'}
     
-    return {'status': 'error', 'message': 'YouTube video could not be fetched. Please try again or use a different video.'}
+    return {'status': 'error', 'message': 'YouTube video could not be fetched'}
 
 def get_youtube_info(url):
     """Get YouTube video info"""
@@ -813,30 +863,24 @@ class VideoPreview:
             return {'status': 'error', 'message': str(e)}
     
     def get_tiktok_info(self, url):
+        """Get TikTok video info"""
         try:
-            response = requests.get(
-                'https://www.tikwm.com/api/',
-                params={'url': url, 'hd': 1},
-                timeout=30
-            )
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('code') == 0:
-                    video_data = data['data']
-                    return {
-                        'status': 'success',
-                        'title': video_data.get('title', 'TikTok Video'),
-                        'uploader': video_data.get('author', {}).get('unique_id', 'Unknown'),
-                        'duration': video_data.get('duration', 0),
-                        'thumbnail': video_data.get('cover', ''),
-                        'views': video_data.get('play_count', 0),
-                        'likes': video_data.get('digg_count', 0),
-                        'comments': video_data.get('comment_count', 0),
-                        'platform': 'tiktok',
-                        'url': url,
-                        'video_url': video_data.get('play', '')
-                    }
-            return {'status': 'error', 'message': 'Failed to get TikTok info'}
+            result = tiktok_downloader.download(url)
+            if result:
+                return {
+                    'status': 'success',
+                    'title': result.get('title', 'TikTok Video'),
+                    'uploader': result.get('author', 'Unknown'),
+                    'duration': result.get('duration', 0),
+                    'thumbnail': result.get('thumbnail', ''),
+                    'views': result.get('views', 0),
+                    'likes': result.get('likes', 0),
+                    'comments': result.get('comments', 0),
+                    'platform': 'tiktok',
+                    'url': url,
+                    'video_url': result.get('video_url')
+                }
+            return {'status': 'error', 'message': 'Could not fetch TikTok video'}
         except Exception as e:
             return {'status': 'error', 'message': str(e)}
     
@@ -1590,7 +1634,7 @@ def clear_downloads():
 def supported_platforms():
     platforms = {
         'video_platforms': [
-            'TikTok (via TikWM API)',
+            'TikTok (via Multi-API)',
             'YouTube (via RapidAPI)',
             'Instagram (via yt-dlp)',
             'Twitter/X',
@@ -1655,15 +1699,15 @@ if __name__ == '__main__':
     print("🌿 SOCIAL MEDIA DOWNLOADER v2.0")
     print("=" * 60)
     print("📱 Supported Platforms:")
-    print("  • TikTok 🎵 (Working)")
-    print("  • YouTube ▶️ (Working via RapidAPI)")
-    print("  • Instagram 📸 (Working)")
-    print("  • Twitter/X 🐦 (Working)")
-    print("  • Facebook 📘 (Working)")
-    print("  • Reddit 🔴 (Working)")
-    print("  • Vimeo 🎬 (Working)")
-    print("  • Dailymotion 🎥 (Working)")
-    print("  • Twitch 📺 (Working)")
+    print("  • TikTok 🎵 (Multi-API)")
+    print("  • YouTube ▶️ (RapidAPI)")
+    print("  • Instagram 📸 (yt-dlp)")
+    print("  • Twitter/X 🐦 (yt-dlp)")
+    print("  • Facebook 📘 (yt-dlp)")
+    print("  • Reddit 🔴 (yt-dlp)")
+    print("  • Vimeo 🎬 (yt-dlp)")
+    print("  • Dailymotion 🎥 (yt-dlp)")
+    print("  • Twitch 📺 (yt-dlp)")
     print("=" * 60)
     print("💾 Save Options: Local | Gallery | Google Drive")
     print("=" * 60)
