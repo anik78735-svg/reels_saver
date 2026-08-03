@@ -2,34 +2,34 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Social Media Downloader</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Social Downloader Pro</title>
     <style>
         /* ============================================
-           CSS VARIABLES & RESET
+           CSS VARIABLES - DARK GREEN & WHITE THEME
            ============================================ */
         :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #12121a;
-            --bg-card: #1a1a2e;
-            --bg-card-hover: #222244;
-            --bg-input: #0f0f1a;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0b8;
-            --text-muted: #666680;
-            --accent-1: #6c5ce7;
-            --accent-2: #a855f7;
-            --accent-3: #ec4899;
-            --accent-4: #f59e0b;
-            --success: #10b981;
-            --error: #ef4444;
-            --border: #2a2a44;
-            --border-light: #3a3a5a;
-            --glass: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            --bg-primary: #0a1f0a;
+            --bg-secondary: #0f2a0f;
+            --bg-card: #1a3a1a;
+            --bg-card-hover: #1f4a1f;
+            --bg-input: #0d240d;
+            --text-primary: #f0fff0;
+            --text-secondary: #b8d9b8;
+            --text-muted: #6d8f6d;
+            --accent-1: #2d8f2d;
+            --accent-2: #4CAF50;
+            --accent-3: #66BB6A;
+            --accent-4: #81C784;
+            --success: #4CAF50;
+            --error: #e57373;
+            --border: #2a4f2a;
+            --border-light: #3a6f3a;
+            --glass: rgba(46, 125, 50, 0.15);
+            --glass-border: rgba(76, 175, 80, 0.2);
+            --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
             --radius: 16px;
-            --transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         * {
@@ -39,12 +39,14 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
             line-height: 1.6;
+            padding: 0;
+            margin: 0;
         }
 
         /* ============================================
@@ -67,36 +69,36 @@
             height: 600px;
             border-radius: 50%;
             filter: blur(120px);
-            opacity: 0.15;
-            animation: floatBg 20s ease-in-out infinite;
+            opacity: 0.08;
+            animation: floatBg 25s ease-in-out infinite;
         }
 
         .bg-gradient:nth-child(1) {
             background: var(--accent-1);
-            top: -10%;
-            left: -10%;
+            top: -15%;
+            left: -15%;
             animation-delay: 0s;
         }
         .bg-gradient:nth-child(2) {
             background: var(--accent-3);
-            bottom: -10%;
-            right: -10%;
-            animation-delay: -7s;
+            bottom: -15%;
+            right: -15%;
+            animation-delay: -8s;
         }
         .bg-gradient:nth-child(3) {
             background: var(--accent-2);
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            animation-delay: -14s;
+            animation-delay: -16s;
             width: 400px;
             height: 400px;
         }
 
         @keyframes floatBg {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(30px, -30px) scale(1.1); }
-            66% { transform: translate(-20px, 20px) scale(0.9); }
+            33% { transform: translate(40px, -40px) scale(1.1); }
+            66% { transform: translate(-30px, 30px) scale(0.9); }
         }
 
         .grid-pattern {
@@ -105,82 +107,19 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-image:
+                linear-gradient(rgba(76, 175, 80, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(76, 175, 80, 0.04) 1px, transparent 1px);
             background-size: 50px 50px;
-        }
-
-        /* ============================================
-           ORB PARTICLES
-           ============================================ */
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            pointer-events: none;
-            opacity: 0.08;
-            animation: orbFloat 15s linear infinite;
-        }
-
-        .orb:nth-child(1) {
-            width: 80px;
-            height: 80px;
-            background: var(--accent-1);
-            top: 10%;
-            left: 5%;
-            animation-duration: 20s;
-        }
-        .orb:nth-child(2) {
-            width: 60px;
-            height: 60px;
-            background: var(--accent-3);
-            bottom: 15%;
-            right: 5%;
-            animation-duration: 18s;
-            animation-delay: -5s;
-        }
-        .orb:nth-child(3) {
-            width: 40px;
-            height: 40px;
-            background: var(--accent-4);
-            top: 40%;
-            left: 80%;
-            animation-duration: 22s;
-            animation-delay: -10s;
-        }
-        .orb:nth-child(4) {
-            width: 100px;
-            height: 100px;
-            background: var(--accent-2);
-            bottom: 30%;
-            left: 10%;
-            animation-duration: 25s;
-            animation-delay: -15s;
-        }
-
-        @keyframes orbFloat {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(50px, -30px) scale(1.2); }
-            50% { transform: translate(-20px, 40px) scale(0.8); }
-            75% { transform: translate(30px, -20px) scale(1.1); }
         }
 
         /* ============================================
            SCROLLBAR
            ============================================ */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: var(--bg-secondary);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: var(--accent-1);
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--accent-2);
-        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--accent-1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-2); }
 
         /* ============================================
            CONTAINER
@@ -190,7 +129,7 @@
             z-index: 1;
             max-width: 1100px;
             margin: 0 auto;
-            padding: 20px 20px 40px;
+            padding: 16px 16px 30px;
         }
 
         /* ============================================
@@ -198,21 +137,21 @@
            ============================================ */
         .header {
             text-align: center;
-            padding: 40px 0 30px;
+            padding: 25px 0 20px;
         }
 
         .header-badge {
             display: inline-block;
-            padding: 6px 18px;
+            padding: 5px 14px;
             background: var(--glass);
             border: 1px solid var(--glass-border);
             border-radius: 100px;
-            font-size: 12px;
-            font-weight: 500;
+            font-size: 11px;
+            font-weight: 600;
             color: var(--text-secondary);
             letter-spacing: 0.5px;
             text-transform: uppercase;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             backdrop-filter: blur(10px);
         }
 
@@ -232,68 +171,63 @@
         }
 
         .header h1 {
-            font-size: 3.5rem;
+            font-size: 2.8rem;
             font-weight: 800;
             letter-spacing: -0.02em;
             line-height: 1.1;
-            background: linear-gradient(135deg, var(--accent-1), var(--accent-2), var(--accent-3));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 12px;
+            color: var(--text-primary);
+            margin-bottom: 8px;
         }
 
         .header h1 .highlight {
-            background: linear-gradient(135deg, var(--accent-4), var(--accent-3));
+            color: var(--accent-3);
+            background: linear-gradient(135deg, var(--accent-2), var(--accent-4));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
         .header p {
-            font-size: 1.15rem;
+            font-size: 1rem;
             color: var(--text-secondary);
-            max-width: 600px;
+            max-width: 550px;
             margin: 0 auto;
         }
 
         /* ============================================
-           PLATFORM TAGS
+           PLATFORM TAGS - MOBILE FRIENDLY
            ============================================ */
         .platform-tags {
             display: flex;
             justify-content: center;
             flex-wrap: wrap;
-            gap: 10px;
-            margin: 24px 0 0;
+            gap: 6px;
+            margin: 16px 0 0;
         }
 
         .platform-tag {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 16px;
+            gap: 4px;
+            padding: 4px 10px;
             background: var(--glass);
             border: 1px solid var(--glass-border);
             border-radius: 100px;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 500;
             color: var(--text-secondary);
             transition: var(--transition);
             backdrop-filter: blur(10px);
-            cursor: default;
+            white-space: nowrap;
         }
 
         .platform-tag:hover {
-            background: var(--glass-border);
+            background: rgba(76, 175, 80, 0.15);
             color: var(--text-primary);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(108, 92, 231, 0.15);
+            transform: translateY(-1px);
         }
 
-        .platform-tag .icon {
-            font-size: 14px;
-        }
+        .platform-tag .icon { font-size: 12px; }
 
         /* ============================================
            CARDS
@@ -303,8 +237,8 @@
             backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
             border-radius: var(--radius);
-            padding: 28px;
-            margin-bottom: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
             transition: var(--transition);
             position: relative;
             overflow: hidden;
@@ -322,10 +256,7 @@
             transition: var(--transition);
         }
 
-        .card:hover::before {
-            opacity: 1;
-        }
-
+        .card:hover::before { opacity: 1; }
         .card:hover {
             border-color: var(--border-light);
             transform: translateY(-2px);
@@ -335,99 +266,101 @@
         .card-header {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
         }
 
         .card-header .icon {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: var(--glass);
             border-radius: 10px;
-            font-size: 20px;
+            font-size: 18px;
             border: 1px solid var(--glass-border);
+            flex-shrink: 0;
         }
 
         .card-header h2 {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: var(--text-primary);
         }
 
         .card-header .subtitle {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: var(--text-muted);
             font-weight: 400;
             margin-left: auto;
         }
 
         /* ============================================
-           INPUT GROUP
+           INPUT GROUP - MOBILE FIX
            ============================================ */
         .input-group {
             display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 10px;
         }
 
         .input-group .input-wrapper {
-            flex: 1;
+            width: 100%;
             position: relative;
-            min-width: 200px;
         }
 
         .input-group input,
         .input-group textarea {
             width: 100%;
-            padding: 14px 18px;
+            padding: 14px 16px;
             background: var(--bg-input);
             border: 1px solid var(--border);
             border-radius: 12px;
             color: var(--text-primary);
-            font-size: 15px;
+            font-size: 16px;
             transition: var(--transition);
             font-family: inherit;
+            -webkit-appearance: none;
+            appearance: none;
         }
 
         .input-group input:focus,
         .input-group textarea:focus {
             outline: none;
-            border-color: var(--accent-1);
-            box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.15);
+            border-color: var(--accent-2);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
         }
 
         .input-group input::placeholder,
         .input-group textarea::placeholder {
             color: var(--text-muted);
+            font-size: 14px;
         }
 
         .input-group textarea {
-            min-height: 100px;
+            min-height: 80px;
             resize: vertical;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 13px;
+            font-size: 14px;
         }
 
         .input-group .input-hint {
-            position: absolute;
-            bottom: -22px;
-            left: 4px;
-            font-size: 11px;
+            display: block;
+            margin-top: 4px;
+            font-size: 10px;
             color: var(--text-muted);
         }
 
         /* ============================================
-           BUTTONS
+           BUTTONS - MOBILE FRIENDLY
            ============================================ */
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            padding: 14px 28px;
+            padding: 12px 20px;
             border: none;
             border-radius: 12px;
             font-size: 14px;
@@ -436,97 +369,57 @@
             transition: var(--transition);
             font-family: inherit;
             color: white;
-            position: relative;
-            overflow: hidden;
-            min-height: 50px;
+            min-height: 46px;
+            width: 100%;
+            touch-action: manipulation;
         }
 
-        .btn::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-            opacity: 0;
-            transition: var(--transition);
-        }
-
-        .btn:hover::after {
-            opacity: 1;
-        }
-
-        .btn:active {
-            transform: scale(0.97);
-        }
-
+        .btn:active { transform: scale(0.97); }
         .btn:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
             transform: none !important;
         }
 
         .btn-primary {
             background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-            box-shadow: 0 8px 30px rgba(108, 92, 231, 0.3);
+            box-shadow: 0 4px 20px rgba(46, 125, 50, 0.3);
         }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(108, 92, 231, 0.4);
-        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(46, 125, 50, 0.4); }
 
         .btn-success {
-            background: linear-gradient(135deg, var(--success), #059669);
-            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.3);
+            background: linear-gradient(135deg, var(--accent-2), #388E3C);
+            box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
         }
-
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(16, 185, 129, 0.4);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, var(--error), #dc2626);
-            box-shadow: 0 8px 30px rgba(239, 68, 68, 0.3);
-        }
-
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(239, 68, 68, 0.4);
-        }
+        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(76, 175, 80, 0.4); }
 
         .btn-drive {
-            background: linear-gradient(135deg, #4285f4, #3367d6);
-            box-shadow: 0 8px 30px rgba(66, 133, 244, 0.3);
+            background: linear-gradient(135deg, #1a73e8, #0d47a1);
+            box-shadow: 0 4px 20px rgba(26, 115, 232, 0.3);
         }
-
-        .btn-drive:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(66, 133, 244, 0.4);
-        }
+        .btn-drive:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(26, 115, 232, 0.4); }
 
         .btn-gallery {
-            background: linear-gradient(135deg, var(--accent-4), #d97706);
-            box-shadow: 0 8px 30px rgba(245, 158, 11, 0.3);
+            background: linear-gradient(135deg, #f57c00, #e65100);
+            box-shadow: 0 4px 20px rgba(245, 124, 0, 0.3);
         }
-
-        .btn-gallery:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(245, 158, 11, 0.4);
-        }
+        .btn-gallery:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(245, 124, 0, 0.4); }
 
         .btn-secondary {
             background: var(--bg-card);
             border: 1px solid var(--border);
             color: var(--text-primary);
         }
+        .btn-secondary:hover { background: var(--bg-card-hover); transform: translateY(-2px); }
 
-        .btn-secondary:hover {
-            background: var(--bg-card-hover);
-            transform: translateY(-2px);
+        .btn-danger {
+            background: linear-gradient(135deg, #c62828, #b71c1c);
+            box-shadow: 0 4px 20px rgba(198, 40, 40, 0.3);
         }
+        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(198, 40, 40, 0.4); }
 
         .btn-sm {
-            padding: 8px 16px;
+            padding: 8px 14px;
             font-size: 12px;
             min-height: 36px;
             border-radius: 8px;
@@ -542,53 +435,43 @@
             display: none;
         }
 
-        .btn.loading .spinner {
-            display: block;
-        }
+        .btn.loading .spinner { display: block; }
+        .btn.loading .btn-text { display: none; }
 
-        .btn.loading .btn-text {
-            display: none;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .button-group {
             display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 16px;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
         }
 
-        .button-group .btn {
-            flex: 1;
-            min-width: 100px;
-        }
+        .button-group .btn { width: 100%; }
 
         /* ============================================
-           SAVE OPTIONS
+           SAVE OPTIONS - MOBILE
            ============================================ */
         .save-options {
             display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-            padding: 16px 20px;
+            flex-direction: column;
+            gap: 6px;
+            padding: 14px 16px;
             background: var(--bg-input);
             border-radius: 12px;
-            margin-top: 16px;
+            margin-top: 12px;
             border: 1px solid var(--border);
         }
 
         .save-options label {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             cursor: pointer;
             color: var(--text-secondary);
             font-size: 14px;
             font-weight: 500;
-            padding: 6px 14px;
+            padding: 6px 12px;
             border-radius: 8px;
             transition: var(--transition);
         }
@@ -598,9 +481,7 @@
             color: var(--text-primary);
         }
 
-        .save-options input[type="radio"] {
-            display: none;
-        }
+        .save-options input[type="radio"] { display: none; }
 
         .save-options .radio-custom {
             width: 20px;
@@ -615,8 +496,8 @@
         }
 
         .save-options input[type="radio"]:checked + .radio-custom {
-            border-color: var(--accent-1);
-            background: var(--accent-1);
+            border-color: var(--accent-2);
+            background: var(--accent-2);
         }
 
         .save-options input[type="radio"]:checked + .radio-custom::after {
@@ -625,72 +506,63 @@
             font-size: 12px;
         }
 
-        .save-options input[type="radio"]:checked ~ .radio-label {
-            color: var(--text-primary);
-        }
-
         /* ============================================
            RESULT / STATUS
            ============================================ */
-        #result,
-        #bulkResult {
-            margin-top: 16px;
-            padding: 16px 20px;
+        #result, #bulkResult {
+            margin-top: 12px;
+            padding: 14px 16px;
             border-radius: 12px;
             display: none;
-            animation: slideDown 0.4s ease-out;
+            animation: slideDown 0.3s ease-out;
             border-left: 4px solid;
+            font-size: 14px;
+            word-break: break-word;
         }
 
         @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
+            from { opacity: 0; transform: translateY(-8px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        #result.success,
-        #bulkResult.success {
+        #result.success, #bulkResult.success {
             display: block;
-            background: rgba(16, 185, 129, 0.08);
+            background: rgba(76, 175, 80, 0.1);
             border-left-color: var(--success);
             color: var(--success);
         }
 
-        #result.error,
-        #bulkResult.error {
+        #result.error, #bulkResult.error {
             display: block;
-            background: rgba(239, 68, 68, 0.08);
+            background: rgba(229, 115, 115, 0.1);
             border-left-color: var(--error);
             color: var(--error);
         }
 
-        #result.loading,
-        #bulkResult.loading {
+        #result.loading, #bulkResult.loading {
             display: block;
-            background: rgba(245, 158, 11, 0.08);
-            border-left-color: var(--accent-4);
-            color: var(--accent-4);
+            background: rgba(255, 193, 7, 0.08);
+            border-left-color: #ffc107;
+            color: #ffc107;
         }
 
-        #result.info,
-        #bulkResult.info {
+        #result.info, #bulkResult.info {
             display: block;
-            background: rgba(108, 92, 231, 0.08);
-            border-left-color: var(--accent-1);
-            color: var(--accent-2);
+            background: rgba(76, 175, 80, 0.08);
+            border-left-color: var(--accent-2);
+            color: var(--accent-3);
         }
 
         /* ============================================
-           PREVIEW
+           PREVIEW - MOBILE
            ============================================ */
         .preview-container {
-            margin-top: 20px;
+            margin-top: 16px;
             display: none;
-            animation: slideDown 0.5s ease-out;
+            animation: slideDown 0.4s ease-out;
         }
 
-        .preview-container.active {
-            display: block;
-        }
+        .preview-container.active { display: block; }
 
         .preview-wrapper {
             background: var(--bg-input);
@@ -701,23 +573,23 @@
 
         .preview-wrapper video {
             width: 100%;
-            max-height: 450px;
+            max-height: 350px;
             background: #000;
             display: block;
         }
 
         .preview-wrapper .preview-thumbnail {
             width: 100%;
-            max-height: 350px;
+            max-height: 250px;
             object-fit: cover;
             display: block;
         }
 
         .preview-info {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 12px;
-            padding: 16px 20px;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 12px 16px;
             background: var(--bg-secondary);
         }
 
@@ -728,7 +600,7 @@
         }
 
         .preview-info .info-item label {
-            font-size: 10px;
+            font-size: 9px;
             text-transform: uppercase;
             color: var(--text-muted);
             letter-spacing: 0.5px;
@@ -738,35 +610,34 @@
         .preview-info .info-item span {
             color: var(--text-primary);
             font-weight: 500;
-            font-size: 14px;
+            font-size: 13px;
+            word-break: break-word;
         }
 
         .preview-actions {
             display: flex;
-            gap: 10px;
-            padding: 16px 20px;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px 16px;
             background: var(--bg-input);
             border-top: 1px solid var(--border);
-            flex-wrap: wrap;
         }
 
-        .preview-actions .btn {
-            flex: 1;
-            min-width: 120px;
-        }
+        .preview-actions .btn { width: 100%; }
 
         /* ============================================
            DRIVE STATUS
            ============================================ */
         .drive-status {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             padding: 12px 16px;
             background: var(--bg-input);
             border-radius: 10px;
             border: 1px solid var(--border);
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .drive-status .status-dot {
@@ -778,42 +649,38 @@
 
         .drive-status .status-dot.connected {
             background: var(--success);
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
         }
 
         .drive-status .status-dot.disconnected {
             background: var(--error);
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+            box-shadow: 0 0 20px rgba(229, 115, 115, 0.3);
         }
 
         .drive-status .status-text {
             flex: 1;
             color: var(--text-secondary);
-            font-size: 14px;
+            font-size: 13px;
+            min-width: 120px;
         }
 
-        .drive-status .status-text strong {
-            color: var(--text-primary);
-        }
-
-        .drive-status .status-text .email {
-            color: var(--accent-2);
-        }
+        .drive-status .status-text strong { color: var(--text-primary); }
+        .drive-status .status-text .email { color: var(--accent-3); }
 
         /* ============================================
-           FOLDER LIST
+           FOLDER LIST - MOBILE
            ============================================ */
         .folder-list {
-            margin-top: 12px;
-            max-height: 300px;
+            margin-top: 10px;
+            max-height: 250px;
             overflow-y: auto;
         }
 
         .folder-item {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 14px;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px 12px;
             background: var(--bg-input);
             border-radius: 8px;
             margin-bottom: 6px;
@@ -821,27 +688,24 @@
             transition: var(--transition);
         }
 
-        .folder-item:hover {
-            border-color: var(--border);
-        }
+        .folder-item:hover { border-color: var(--border); }
 
         .folder-item .folder-name {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             color: var(--text-secondary);
-            font-size: 14px;
+            font-size: 13px;
+            flex-wrap: wrap;
         }
 
-        .folder-item .folder-name .icon {
-            font-size: 18px;
-        }
+        .folder-item .folder-name .icon { font-size: 16px; }
 
         .folder-item .folder-name .selected-badge {
             background: var(--success);
             color: white;
-            font-size: 10px;
-            padding: 2px 10px;
+            font-size: 9px;
+            padding: 2px 8px;
             border-radius: 100px;
             font-weight: 600;
         }
@@ -849,35 +713,40 @@
         .folder-item .folder-actions {
             display: flex;
             gap: 6px;
+            flex-wrap: wrap;
         }
+
+        .folder-item .folder-actions .btn { width: auto; flex: 1; }
 
         .folder-empty {
             text-align: center;
-            padding: 30px;
+            padding: 25px;
             color: var(--text-muted);
         }
 
         .folder-empty .icon {
-            font-size: 40px;
+            font-size: 32px;
             display: block;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         /* ============================================
-           FEATURES GRID
+           FEATURES & STATS - MOBILE
            ============================================ */
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 12px;
-            margin-top: 16px;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
         }
 
         .feature-item {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
-            padding: 12px 16px;
+            text-align: center;
+            gap: 4px;
+            padding: 12px 8px;
             background: var(--glass);
             border: 1px solid var(--glass-border);
             border-radius: 10px;
@@ -885,36 +754,29 @@
         }
 
         .feature-item:hover {
-            background: var(--glass-border);
+            background: rgba(76, 175, 80, 0.08);
             transform: translateY(-2px);
         }
 
-        .feature-item .icon {
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-
+        .feature-item .icon { font-size: 22px; }
         .feature-item .text {
-            font-size: 13px;
+            font-size: 11px;
             color: var(--text-secondary);
         }
-
         .feature-item .text strong {
             color: var(--text-primary);
+            display: block;
         }
 
-        /* ============================================
-           STATS BAR
-           ============================================ */
         .stats-bar {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 16px;
-            padding: 16px 20px;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 12px 16px;
             background: var(--bg-input);
             border-radius: 12px;
             border: 1px solid var(--border);
-            margin-top: 16px;
+            margin-top: 12px;
         }
 
         .stat-item {
@@ -922,16 +784,13 @@
         }
 
         .stat-item .number {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: var(--accent-3);
         }
 
         .stat-item .label {
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
             color: var(--text-muted);
             letter-spacing: 0.5px;
@@ -939,147 +798,53 @@
         }
 
         /* ============================================
-           RESPONSIVE
+           RESPONSIVE - TABLET & DESKTOP
            ============================================ */
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2.2rem;
-            }
-
-            .header p {
-                font-size: 1rem;
-            }
-
-            .card {
-                padding: 20px;
-                border-radius: 12px;
-            }
-
-            .input-group {
-                flex-direction: column;
-            }
-
-            .input-group .input-wrapper {
-                min-width: unset;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .button-group {
-                flex-direction: column;
-            }
-
-            .button-group .btn {
-                min-width: unset;
-            }
-
-            .save-options {
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .preview-info {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .preview-actions {
-                flex-direction: column;
-            }
-
-            .features-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .stats-bar {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .drive-status {
-                flex-wrap: wrap;
-            }
-
-            .folder-item {
-                flex-direction: column;
-                gap: 8px;
-                align-items: flex-start;
-            }
-
-            .folder-item .folder-actions {
-                width: 100%;
-            }
-
-            .folder-item .folder-actions .btn {
-                width: 100%;
-            }
-
-            .platform-tags {
-                gap: 6px;
-            }
-
-            .platform-tag {
-                font-size: 10px;
-                padding: 4px 12px;
-            }
+        @media (min-width: 600px) {
+            .app-container { padding: 24px 30px 40px; }
+            .header h1 { font-size: 3.2rem; }
+            .card { padding: 28px; }
+            .input-group { flex-direction: row; }
+            .input-group .input-wrapper { flex: 1; }
+            .button-group { flex-direction: row; }
+            .button-group .btn { width: auto; flex: 1; }
+            .save-options { flex-direction: row; flex-wrap: wrap; }
+            .preview-actions { flex-direction: row; }
+            .preview-actions .btn { width: auto; flex: 1; }
+            .features-grid { grid-template-columns: repeat(3, 1fr); }
+            .stats-bar { grid-template-columns: repeat(4, 1fr); }
+            .folder-item { flex-direction: row; align-items: center; }
+            .folder-item .folder-actions { width: auto; }
+            .folder-item .folder-actions .btn { width: auto; flex: none; }
+            .drive-status { flex-wrap: nowrap; }
         }
 
-        @media (max-width: 480px) {
-            .header h1 {
-                font-size: 1.8rem;
-            }
-
-            .preview-info {
-                grid-template-columns: 1fr;
-            }
-
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-bar {
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
-            }
-
-            .stat-item .number {
-                font-size: 18px;
-            }
+        @media (min-width: 900px) {
+            .header h1 { font-size: 4rem; }
+            .features-grid { grid-template-columns: repeat(3, 1fr); }
+            .preview-info { grid-template-columns: repeat(3, 1fr); }
         }
 
         /* ============================================
            UTILITY
            ============================================ */
-        .text-gradient {
-            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .mt-8 { margin-top: 8px; }
-        .mt-12 { margin-top: 12px; }
-        .mt-16 { margin-top: 16px; }
-        .mt-20 { margin-top: 20px; }
-
-        .flex-center {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gap-8 { gap: 8px; }
-        .gap-12 { gap: 12px; }
-        .gap-16 { gap: 16px; }
-
         .text-center { text-align: center; }
         .text-muted { color: var(--text-muted); }
         .text-secondary { color: var(--text-secondary); }
-        .text-sm { font-size: 13px; }
-        .text-xs { font-size: 11px; }
-
+        .text-sm { font-size: 12px; }
+        .text-xs { font-size: 10px; }
+        .mt-8 { margin-top: 8px; }
+        .mt-12 { margin-top: 12px; }
+        .mt-16 { margin-top: 16px; }
         .hidden { display: none !important; }
+        .w-full { width: 100%; }
+
+        .btn .btn-text {
+            display: inline;
+        }
+        .btn.loading .btn-text {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -1092,10 +857,6 @@
         <div class="bg-gradient"></div>
         <div class="bg-gradient"></div>
         <div class="grid-pattern"></div>
-        <div class="orb"></div>
-        <div class="orb"></div>
-        <div class="orb"></div>
-        <div class="orb"></div>
     </div>
 
     <!-- ============================================
@@ -1103,9 +864,7 @@
     ============================================ -->
     <div class="app-container">
 
-        <!-- ==========================================
-        HEADER
-        ========================================== -->
+        <!-- HEADER -->
         <header class="header">
             <div class="header-badge">
                 <span class="dot"></span>
@@ -1114,9 +873,7 @@
             <h1>
                 Social <span class="highlight">Downloader</span>
             </h1>
-            <p>
-                Download videos from TikTok, YouTube, Instagram, Twitter, Facebook, Reddit & more
-            </p>
+            <p>Download videos from TikTok, YouTube, Instagram, Twitter, Facebook, Reddit & more</p>
 
             <div class="platform-tags">
                 <span class="platform-tag"><span class="icon">🎵</span> TikTok</span>
@@ -1130,9 +887,7 @@
             </div>
         </header>
 
-        <!-- ==========================================
-        MAIN DOWNLOAD CARD
-        ========================================== -->
+        <!-- MAIN DOWNLOAD CARD -->
         <div class="card">
             <div class="card-header">
                 <div class="icon">🔗</div>
@@ -1142,10 +897,12 @@
 
             <div class="input-group">
                 <div class="input-wrapper">
-                    <input 
-                        type="text" 
-                        id="urlInput" 
+                    <input
+                        type="url"
+                        id="urlInput"
                         placeholder="https://www.tiktok.com/@user/video/123456789"
+                        inputmode="url"
+                        autocomplete="url"
                     />
                     <span class="input-hint">Support: TikTok, YouTube, Instagram, Twitter, Facebook, Reddit, Vimeo</span>
                 </div>
@@ -1181,7 +938,6 @@
                 </label>
             </div>
 
-            <!-- Result -->
             <div id="result"></div>
 
             <!-- Preview Container -->
@@ -1196,9 +952,7 @@
             </div>
         </div>
 
-        <!-- ==========================================
-        GOOGLE DRIVE CARD
-        ========================================== -->
+        <!-- GOOGLE DRIVE CARD -->
         <div class="card">
             <div class="card-header">
                 <div class="icon">☁️</div>
@@ -1211,7 +965,7 @@
                 <span class="status-text">
                     <strong>Status:</strong> <span id="driveStatusText">Not connected</span>
                 </span>
-                <button class="btn btn-sm btn-drive" id="connectDriveBtn">🔗 Connect</button>
+                <button class="btn btn-sm btn-drive" id="connectDriveBtn" style="width:auto;flex:1;">🔗 Connect</button>
             </div>
 
             <div class="button-group">
@@ -1229,9 +983,7 @@
             </div>
         </div>
 
-        <!-- ==========================================
-        BULK DOWNLOAD CARD
-        ========================================== -->
+        <!-- BULK DOWNLOAD CARD -->
         <div class="card">
             <div class="card-header">
                 <div class="icon">📦</div>
@@ -1241,8 +993,8 @@
 
             <div class="input-group">
                 <div class="input-wrapper" style="width:100%;">
-                    <textarea 
-                        id="bulkUrls" 
+                    <textarea
+                        id="bulkUrls"
                         placeholder="https://www.tiktok.com/@user/video/123456789&#10;https://www.youtube.com/watch?v=abc123&#10;https://www.instagram.com/p/xyz789/"
                     ></textarea>
                 </div>
@@ -1259,9 +1011,7 @@
             <div id="bulkResult"></div>
         </div>
 
-        <!-- ==========================================
-        STATS & FEATURES
-        ========================================== -->
+        <!-- STATS & FEATURES -->
         <div class="card">
             <div class="card-header">
                 <div class="icon">📊</div>
@@ -1291,42 +1041,40 @@
             <div class="features-grid">
                 <div class="feature-item">
                     <span class="icon">🎯</span>
-                    <span class="text"><strong>Auto Detection</strong><br>Platform detection</span>
+                    <span class="text"><strong>Auto Detection</strong>Platform detection</span>
                 </div>
                 <div class="feature-item">
                     <span class="icon">📱</span>
-                    <span class="text"><strong>All Content</strong><br>Videos, Reels, Stories</span>
+                    <span class="text"><strong>All Content</strong>Videos, Reels, Stories</span>
                 </div>
                 <div class="feature-item">
                     <span class="icon">📦</span>
-                    <span class="text"><strong>Bulk Download</strong><br>Multiple URLs</span>
+                    <span class="text"><strong>Bulk Download</strong>Multiple URLs</span>
                 </div>
                 <div class="feature-item">
                     <span class="icon">☁️</span>
-                    <span class="text"><strong>Drive Backup</strong><br>Save to Google Drive</span>
+                    <span class="text"><strong>Drive Backup</strong>Save to Google Drive</span>
                 </div>
                 <div class="feature-item">
                     <span class="icon">🖼️</span>
-                    <span class="text"><strong>Gallery Save</strong><br>Local gallery</span>
+                    <span class="text"><strong>Gallery Save</strong>Local gallery</span>
                 </div>
                 <div class="feature-item">
                     <span class="icon">👁️</span>
-                    <span class="text"><strong>Video Preview</strong><br>Before downloading</span>
+                    <span class="text"><strong>Video Preview</strong>Before downloading</span>
                 </div>
             </div>
         </div>
 
-        <!-- ==========================================
-        FOOTER
-        ========================================== -->
-        <div class="text-center text-muted text-xs" style="padding:20px 0 10px;border-top:1px solid var(--border);">
+        <!-- FOOTER -->
+        <div class="text-center text-muted text-xs" style="padding:16px 0 8px;border-top:1px solid var(--border);">
             Made with ❤️ • Universal Social Media Downloader • v2.0
         </div>
 
     </div>
 
     <!-- ============================================
-    JAVASCRIPT
+    JAVASCRIPT - FULLY FIXED
     ============================================ -->
     <script>
         // ============================================
@@ -1357,7 +1105,6 @@
         const selectFolderBtn = document.getElementById('selectFolderBtn');
         const createFolderBtn = document.getElementById('createFolderBtn');
         const refreshFoldersBtn = document.getElementById('refreshFoldersBtn');
-        const driveStatus = document.getElementById('driveStatus');
         const driveStatusText = document.getElementById('driveStatusText');
         const folderList = document.getElementById('folderList');
         const totalDownloadsEl = document.getElementById('totalDownloads');
@@ -1375,6 +1122,10 @@
             container.className = type;
             container.style.display = 'block';
             container.innerHTML = message;
+            // Auto-scroll to result on mobile
+            if (window.innerWidth < 600) {
+                container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
         }
 
         function hideResult(container = resultDiv) {
@@ -1390,7 +1141,7 @@
         }
 
         function formatBytes(bytes) {
-            if (bytes < 1024) return bytes + ' B';
+            if (!bytes || bytes < 1024) return bytes + ' B';
             if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
             return (bytes / 1048576).toFixed(1) + ' MB';
         }
@@ -1418,19 +1169,19 @@
             try {
                 const response = await fetch('/drive/status');
                 const data = await response.json();
-                
+
                 if (data.connected) {
                     isDriveConnected = true;
                     driveStatusText.textContent = `Connected to ${data.email}`;
                     document.querySelector('.drive-status .status-dot').className = 'status-dot connected';
-                    document.querySelector('#driveStatus .btn').textContent = '✅ Connected';
-                    document.querySelector('#driveStatus .btn').disabled = true;
+                    connectDriveBtn.textContent = '✅ Connected';
+                    connectDriveBtn.disabled = true;
                 } else {
                     isDriveConnected = false;
                     driveStatusText.textContent = 'Not connected';
                     document.querySelector('.drive-status .status-dot').className = 'status-dot disconnected';
-                    document.querySelector('#driveStatus .btn').textContent = '🔗 Connect';
-                    document.querySelector('#driveStatus .btn').disabled = false;
+                    connectDriveBtn.textContent = '🔗 Connect';
+                    connectDriveBtn.disabled = false;
                 }
             } catch (error) {
                 console.error('Drive status check failed:', error);
@@ -1475,19 +1226,19 @@
 
         function showPreview(data) {
             previewContainer.classList.add('active');
-            
+
             let html = '';
-            
+
             // Video player or thumbnail
             if (data.video_url) {
-                html += `<video controls autoplay muted>
+                html += `<video controls autoplay muted playsinline>
                             <source src="${data.video_url}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>`;
             } else if (data.thumbnail) {
-                html += `<img src="${data.thumbnail}" class="preview-thumbnail" alt="Thumbnail" />`;
+                html += `<img src="${data.thumbnail}" class="preview-thumbnail" alt="Thumbnail" loading="lazy" />`;
             }
-            
+
             // Info
             html += `<div class="preview-info">`;
             if (data.title) {
@@ -1511,14 +1262,15 @@
                 html += `<div class="info-item"><label>Platform</label><span>${data.platform.toUpperCase()}</span></div>`;
             }
             html += `</div>`;
-            
+
             previewContent.innerHTML = html;
-            
+
             // Store current download info
             currentDownload = {
                 title: data.title,
                 uploader: data.uploader,
-                platform: data.platform
+                platform: data.platform,
+                filename: null
             };
         }
 
@@ -1547,39 +1299,40 @@
 
                 if (data.status === 'success') {
                     updateTotalDownloads();
-                    
+
                     let html = `<strong>✅ ${data.message}</strong>`;
-                    
+
                     // Metadata
-                    html += `<div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">`;
-                    if (data.title) html += `<div style="background:rgba(255,255,255,0.05);padding:6px 10px;border-radius:6px;"><small style="color:var(--text-muted);">Title</small><br><strong>${data.title}</strong></div>`;
-                    if (data.uploader) html += `<div style="background:rgba(255,255,255,0.05);padding:6px 10px;border-radius:6px;"><small style="color:var(--text-muted);">Uploader</small><br><strong>${data.uploader}</strong></div>`;
-                    if (data.platform) html += `<div style="background:rgba(255,255,255,0.05);padding:6px 10px;border-radius:6px;"><small style="color:var(--text-muted);">Platform</small><br><strong>${data.platform.toUpperCase()}</strong></div>`;
-                    if (data.size) html += `<div style="background:rgba(255,255,255,0.05);padding:6px 10px;border-radius:6px;"><small style="color:var(--text-muted);">Size</small><br><strong>${formatBytes(data.size)}</strong></div>`;
+                    html += `<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">`;
+                    if (data.title) html += `<div style="background:rgba(255,255,255,0.04);padding:6px 8px;border-radius:6px;"><small style="color:var(--text-muted);">Title</small><br><strong style="font-size:13px;">${data.title}</strong></div>`;
+                    if (data.uploader) html += `<div style="background:rgba(255,255,255,0.04);padding:6px 8px;border-radius:6px;"><small style="color:var(--text-muted);">Uploader</small><br><strong style="font-size:13px;">${data.uploader}</strong></div>`;
+                    if (data.platform) html += `<div style="background:rgba(255,255,255,0.04);padding:6px 8px;border-radius:6px;"><small style="color:var(--text-muted);">Platform</small><br><strong style="font-size:13px;">${data.platform.toUpperCase()}</strong></div>`;
+                    if (data.size) html += `<div style="background:rgba(255,255,255,0.04);padding:6px 8px;border-radius:6px;"><small style="color:var(--text-muted);">Size</small><br><strong style="font-size:13px;">${formatBytes(data.size)}</strong></div>`;
                     html += `</div>`;
-                    
+
                     // Gallery save result
                     if (data.gallery && data.gallery.status === 'success') {
-                        html += `<div style="color:#10b981;margin-top:10px;">🖼️ ${data.gallery.message}</div>`;
+                        html += `<div style="color:var(--success);margin-top:8px;">🖼️ ${data.gallery.message}</div>`;
                     }
-                    
+
                     // Drive upload result
                     if (data.drive && data.drive.status === 'success') {
-                        html += `<div style="color:#4285f4;margin-top:10px;">☁️ ${data.drive.message}</div>`;
+                        html += `<div style="color:#4caf50;margin-top:8px;">☁️ ${data.drive.message}</div>`;
                         if (data.drive.web_link) {
-                            html += `<a href="${data.drive.web_link}" target="_blank" style="color:#4285f4;display:inline-block;margin-top:6px;">🔗 View in Drive</a>`;
+                            html += `<a href="${data.drive.web_link}" target="_blank" rel="noopener" style="color:#4caf50;display:inline-block;margin-top:4px;">🔗 View in Drive</a>`;
                         }
                     }
-                    
+
                     // Download buttons
                     if (data.filename) {
-                        html += `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                        currentDownload.filename = data.filename;
+                        html += `<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
                                     <button class="btn btn-success btn-sm" onclick="downloadFile('${data.filename}')">⬇️ Download File</button>
                                     <button class="btn btn-gallery btn-sm" onclick="saveToGallery('${data.filename}')">🖼️ Save to Gallery</button>
                                     <button class="btn btn-drive btn-sm" onclick="uploadToDrive('${data.filename}')">☁️ Upload to Drive</button>
                                  </div>`;
                     }
-                    
+
                     showResult(html, 'success');
                 } else {
                     showResult(`❌ ${data.message}`, 'error');
@@ -1622,7 +1375,7 @@
                 showResult('Please select a Drive folder first', 'error');
                 return;
             }
-            
+
             try {
                 showResult('⏳ Uploading to Drive...', 'loading');
                 const response = await fetch('/drive/upload', {
@@ -1634,7 +1387,7 @@
                 if (data.status === 'success') {
                     let msg = `✅ ${data.message}`;
                     if (data.web_link) {
-                        msg += `<br><a href="${data.web_link}" target="_blank" style="color:#4285f4;">🔗 View in Drive</a>`;
+                        msg += `<br><a href="${data.web_link}" target="_blank" rel="noopener" style="color:#4caf50;">🔗 View in Drive</a>`;
                     }
                     showResult(msg, 'success');
                 } else {
@@ -1646,44 +1399,51 @@
         }
 
         // ============================================
-        // GOOGLE DRIVE FUNCTIONS
+        // GOOGLE DRIVE FUNCTIONS - FIXED
         // ============================================
         async function connectDrive() {
             showResult('⏳ Connecting to Google Drive...', 'loading');
             setLoading(connectDriveBtn, true);
-            
+
             try {
-                const response = await fetch('/drive/auth', { method: 'POST' });
+                // ✅ FIX: Proper headers with Content-Type
+                const response = await fetch('/drive/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+
                 const data = await response.json();
-                
+
                 if (data.status === 'success' && data.auth_url) {
                     // Open auth URL in new window
                     const authWindow = window.open(data.auth_url, '_blank', 'width=600,height=700');
-                    
+
                     if (!authWindow) {
-                        showResult(`Please visit this URL to authorize:<br><a href="${data.auth_url}" target="_blank" style="color:#8b5cf6;">${data.auth_url}</a><br><br>After authorization, click "Verify" below.`, 'info');
-                        
-                        // Add verify button
-                        const verifyBtn = document.createElement('button');
-                        verifyBtn.className = 'btn btn-success btn-sm';
-                        verifyBtn.textContent = '✅ Verify Connection';
-                        verifyBtn.style.marginTop = '10px';
-                        verifyBtn.onclick = checkDriveStatus;
-                        document.getElementById('result').appendChild(verifyBtn);
+                        // Popup blocked - show manual link
+                        const resultDiv = document.getElementById('result');
+                        resultDiv.className = 'info';
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerHTML = `
+                            <strong>🔗 Please authorize manually:</strong><br>
+                            <a href="${data.auth_url}" target="_blank" rel="noopener" style="color:#4caf50;word-break:break-all;">${data.auth_url}</a>
+                            <br><br>
+                            <button class="btn btn-success btn-sm" onclick="checkDriveStatus()">✅ Verify Connection</button>
+                        `;
                     } else {
-                        showResult('✅ Authorization window opened. Please complete the process.', 'success');
-                        // Check status after a delay
-                        setTimeout(checkDriveStatus, 5000);
+                        showResult('✅ Authorization window opened. Complete the process and then click "Verify".', 'success');
+                        // Check status after 10 seconds
+                        setTimeout(checkDriveStatus, 10000);
                     }
                 } else if (data.status === 'success' && data.connected) {
                     showResult(`✅ ${data.message}`, 'success');
                     checkDriveStatus();
                     listFolders();
                 } else {
-                    showResult(`❌ ${data.message}`, 'error');
+                    showResult(`❌ ${data.message || 'Something went wrong'}`, 'error');
                 }
             } catch (error) {
-                showResult(`❌ ${error.message}`, 'error');
+                showResult(`❌ Error: ${error.message}`, 'error');
             } finally {
                 setLoading(connectDriveBtn, false);
             }
@@ -1694,13 +1454,13 @@
                 showResult('Please connect to Google Drive first', 'error');
                 return;
             }
-            
+
             setLoading(selectFolderBtn, true);
-            
+
             try {
                 const response = await fetch('/drive/folders');
                 const data = await response.json();
-                
+
                 if (data.status === 'success' && data.folders) {
                     if (data.folders.length > 0) {
                         let html = '';
@@ -1773,7 +1533,7 @@
         async function createFolder() {
             const folderName = prompt('Enter folder name:');
             if (!folderName) return;
-            
+
             try {
                 const response = await fetch('/drive/folder/create', {
                     method: 'POST',
@@ -1820,15 +1580,15 @@
                     if (data.results) {
                         const successes = data.results.filter(r => r.status === 'success').length;
                         const errors = data.results.filter(r => r.status === 'error').length;
-                        html += `<div style="margin-top:10px;display:flex;gap:16px;">
-                                    <span style="color:#10b981;">✅ Success: ${successes}</span>
-                                    <span style="color:#ef4444;">❌ Failed: ${errors}</span>
+                        html += `<div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;">
+                                    <span style="color:var(--success);">✅ Success: ${successes}</span>
+                                    <span style="color:var(--error);">❌ Failed: ${errors}</span>
                                 </div>`;
                         html += `<div style="margin-top:10px;max-height:200px;overflow-y:auto;">`;
-                        data.results.forEach((r, i) => {
+                        data.results.forEach((r) => {
                             const icon = r.status === 'success' ? '✅' : '❌';
                             const color = r.status === 'success' ? 'var(--success)' : 'var(--error)';
-                            html += `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:13px;color:${color};">${icon} ${r.message}</div>`;
+                            html += `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;color:${color};word-break:break-word;">${icon} ${r.message}</div>`;
                         });
                         html += `</div>`;
                     }
@@ -1851,7 +1611,7 @@
             try {
                 const response = await fetch('/clear-downloads', { method: 'POST' });
                 const data = await response.json();
-                showResult(data.status === 'success' ? `✅ ${data.message}` : `❌ ${data.message}`, 
+                showResult(data.status === 'success' ? `✅ ${data.message}` : `❌ ${data.message}`,
                           data.status === 'success' ? 'success' : 'error');
             } catch (error) {
                 showResult(`❌ ${error.message}`, 'error');
@@ -1863,7 +1623,7 @@
         // ============================================
         previewBtn.addEventListener('click', previewVideo);
         downloadBtn.addEventListener('click', downloadVideo);
-        
+
         urlInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') downloadVideo();
         });
@@ -1902,12 +1662,10 @@
         // KEYBOARD SHORTCUTS
         // ============================================
         document.addEventListener('keydown', (e) => {
-            // Ctrl+Enter to download
             if (e.ctrlKey && e.key === 'Enter') {
                 e.preventDefault();
                 downloadVideo();
             }
-            // Escape to clear results
             if (e.key === 'Escape') {
                 hideResult();
                 hideResult(bulkResult);
@@ -1917,7 +1675,7 @@
         // ============================================
         // CONSOLE LOG
         // ============================================
-        console.log('🚀 Universal Social Media Downloader v2.0');
+        console.log('🌿 Social Downloader Pro v2.0 (Dark Green Edition)');
         console.log('💾 Save options: Local | Gallery | Google Drive');
         console.log('📊 Total downloads:', totalDownloads);
         console.log('🔗 Connect Drive to enable cloud storage');
