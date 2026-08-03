@@ -140,4 +140,640 @@
         }
         #result.error {
             display: block;
-            background: rgba(239, 68, 68, 
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+        }
+        #result.loading {
+            display: block;
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid #f59e0b;
+            color: #f59e0b;
+        }
+        .preview-container {
+            margin-top: 15px;
+            display: none;
+            padding: 15px;
+            background: #111;
+            border-radius: 8px;
+        }
+        .preview-container.active {
+            display: block;
+        }
+        .preview-container video {
+            width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            background: #000;
+        }
+        .preview-thumbnail {
+            width: 100%;
+            max-height: 300px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .preview-info {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .preview-info .info-item {
+            background: #1a1a1a;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        .info-item label {
+            color: #888;
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .info-item span {
+            color: white;
+            font-weight: 600;
+        }
+        .save-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+            padding: 15px;
+            background: #111;
+            border-radius: 8px;
+        }
+        .save-options label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .save-options input[type="radio"] {
+            accent-color: #8b5cf6;
+        }
+        .drive-status {
+            padding: 10px;
+            background: #111;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+        .drive-status .connected {
+            color: #10b981;
+        }
+        .drive-status .disconnected {
+            color: #ef4444;
+        }
+        .platforms {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .platform-tag {
+            padding: 4px 12px;
+            background: #2a2a2a;
+            border-radius: 20px;
+            font-size: 12px;
+            border: 1px solid #333;
+        }
+        .platform-tag.tiktok { border-color: #000; }
+        .platform-tag.youtube { border-color: #ff0000; }
+        .platform-tag.instagram { border-color: #e4405f; }
+        .platform-tag.twitter { border-color: #1da1f2; }
+        .platform-tag.facebook { border-color: #1877f2; }
+        .platform-tag.reddit { border-color: #ff4500; }
+        .bulk-area textarea {
+            width: 100%;
+            padding: 12px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: white;
+            min-height: 100px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.8rem; }
+            .input-group { flex-direction: column; }
+            .btn { width: 100%; }
+            .save-options { flex-direction: column; }
+            .preview-info { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📥 Universal Social Media Downloader</h1>
+            <p>Download videos from TikTok, YouTube, Instagram, Twitter, Facebook, Reddit & more</p>
+        </div>
+
+        <!-- Main Download Card -->
+        <div class="card">
+            <h3>🔗 Enter URL</h3>
+            <div class="input-group">
+                <input type="text" id="urlInput" placeholder="Paste URL here..." />
+                <button class="btn" id="previewBtn">👁️ Preview</button>
+                <button class="btn" id="downloadBtn">⬇️ Download</button>
+            </div>
+            
+            <!-- Save Options -->
+            <div class="save-options">
+                <label><input type="radio" name="saveTo" value="local" checked /> 💾 Local</label>
+                <label><input type="radio" name="saveTo" value="gallery" /> 🖼️ Gallery</label>
+                <label><input type="radio" name="saveTo" value="drive" /> ☁️ Google Drive</label>
+            </div>
+            
+            <!-- Result -->
+            <div id="result"></div>
+            
+            <!-- Preview Container -->
+            <div class="preview-container" id="previewContainer">
+                <div id="previewContent"></div>
+                <div class="button-group">
+                    <button class="btn btn-success" id="saveGalleryBtn">📁 Save to Gallery</button>
+                    <button class="btn btn-drive" id="saveDriveBtn">☁️ Save to Drive</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Drive Card -->
+        <div class="card">
+            <h3>☁️ Google Drive</h3>
+            <div class="drive-status" id="driveStatus">
+                <span class="disconnected">❌ Not connected</span>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-drive" id="connectDriveBtn">🔗 Connect Drive</button>
+                <button class="btn btn-secondary" id="selectFolderBtn">📁 Select Folder</button>
+                <button class="btn btn-secondary" id="createFolderBtn">➕ Create Folder</button>
+            </div>
+            <div id="folderList" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- Bulk Download Card -->
+        <div class="card">
+            <h3>📦 Bulk Download</h3>
+            <div class="bulk-area">
+                <textarea id="bulkUrls" placeholder="Enter multiple URLs, one per line"></textarea>
+                <div class="button-group" style="margin-top:10px;">
+                    <button class="btn" id="bulkDownloadBtn">⬇️ Download All</button>
+                    <button class="btn btn-secondary" id="clearBtn">🗑️ Clear</button>
+                </div>
+                <div id="bulkResult"></div>
+            </div>
+        </div>
+
+        <!-- Supported Platforms -->
+        <div class="card">
+            <h3>🎯 Supported Platforms</h3>
+            <div class="platforms">
+                <span class="platform-tag tiktok">🎵 TikTok</span>
+                <span class="platform-tag youtube">▶️ YouTube</span>
+                <span class="platform-tag instagram">📸 Instagram</span>
+                <span class="platform-tag twitter">🐦 Twitter/X</span>
+                <span class="platform-tag facebook">📘 Facebook</span>
+                <span class="platform-tag reddit">🔴 Reddit</span>
+                <span class="platform-tag">🎬 Vimeo</span>
+                <span class="platform-tag">📺 Twitch</span>
+                <span class="platform-tag">🎥 Dailymotion</span>
+            </div>
+            <div style="margin-top:15px;color:#888;font-size:13px;">
+                💾 Save to: Local 📁 Gallery 🖼️ Google Drive ☁️
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // STATE
+        // ============================================
+        let currentDownload = null;
+        let isDriveConnected = false;
+        let selectedFolderId = null;
+        let currentVideoUrl = null;
+
+        // ============================================
+        // DOM REFERENCES
+        // ============================================
+        const urlInput = document.getElementById('urlInput');
+        const previewBtn = document.getElementById('previewBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const resultDiv = document.getElementById('result');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewContent = document.getElementById('previewContent');
+        const saveGalleryBtn = document.getElementById('saveGalleryBtn');
+        const saveDriveBtn = document.getElementById('saveDriveBtn');
+        const bulkUrls = document.getElementById('bulkUrls');
+        const bulkDownloadBtn = document.getElementById('bulkDownloadBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const bulkResult = document.getElementById('bulkResult');
+        const connectDriveBtn = document.getElementById('connectDriveBtn');
+        const selectFolderBtn = document.getElementById('selectFolderBtn');
+        const createFolderBtn = document.getElementById('createFolderBtn');
+        const driveStatus = document.getElementById('driveStatus');
+        const folderList = document.getElementById('folderList');
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function showResult(message, type, container = resultDiv) {
+            container.className = type;
+            container.style.display = 'block';
+            container.innerHTML = message;
+        }
+
+        function hideResult(container = resultDiv) {
+            container.style.display = 'none';
+        }
+
+        function getSaveOption() {
+            const radios = document.querySelectorAll('input[name="saveTo"]');
+            for (let radio of radios) {
+                if (radio.checked) return radio.value;
+            }
+            return 'local';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        // ============================================
+        // PREVIEW FUNCTION
+        // ============================================
+        async function previewVideo() {
+            const url = urlInput.value.trim();
+            if (!url) {
+                showResult('Please enter a URL', 'error');
+                return;
+            }
+
+            previewBtn.disabled = true;
+            showResult('⏳ Loading preview...', 'loading');
+
+            try {
+                const response = await fetch('/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    currentVideoUrl = url;
+                    showPreview(data);
+                    showResult('✅ Video preview loaded', 'success');
+                } else {
+                    showResult(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                previewBtn.disabled = false;
+            }
+        }
+
+        function showPreview(data) {
+            previewContainer.classList.add('active');
+            
+            let html = '';
+            
+            // Video player or thumbnail
+            if (data.video_url) {
+                html += `<video controls autoplay muted>
+                            <source src="${data.video_url}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>`;
+            } else if (data.thumbnail) {
+                html += `<img src="${data.thumbnail}" class="preview-thumbnail" alt="Thumbnail" />`;
+            }
+            
+            // Info
+            html += `<div class="preview-info">`;
+            if (data.title) {
+                html += `<div class="info-item"><label>Title</label><span>${data.title}</span></div>`;
+            }
+            if (data.uploader) {
+                html += `<div class="info-item"><label>Uploader</label><span>${data.uploader}</span></div>`;
+            }
+            if (data.duration) {
+                const mins = Math.floor(data.duration / 60);
+                const secs = data.duration % 60;
+                html += `<div class="info-item"><label>Duration</label><span>${mins}:${secs.toString().padStart(2, '0')}</span></div>`;
+            }
+            if (data.views) {
+                html += `<div class="info-item"><label>Views</label><span>${data.views.toLocaleString()}</span></div>`;
+            }
+            if (data.likes) {
+                html += `<div class="info-item"><label>Likes</label><span>${data.likes.toLocaleString()}</span></div>`;
+            }
+            if (data.platform) {
+                html += `<div class="info-item"><label>Platform</label><span>${data.platform.toUpperCase()}</span></div>`;
+            }
+            html += `</div>`;
+            
+            previewContent.innerHTML = html;
+        }
+
+        // ============================================
+        // DOWNLOAD FUNCTION
+        // ============================================
+        async function downloadVideo() {
+            const url = urlInput.value.trim();
+            if (!url) {
+                showResult('Please enter a URL', 'error');
+                return;
+            }
+
+            const saveTo = getSaveOption();
+            downloadBtn.disabled = true;
+            showResult('⏳ Downloading... Please wait', 'loading');
+
+            try {
+                const response = await fetch('/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, save_to: saveTo })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    let html = `<strong>✅ ${data.message}</strong>`;
+                    if (data.title) html += `<div>📝 ${data.title}</div>`;
+                    if (data.uploader) html += `<div>👤 ${data.uploader}</div>`;
+                    if (data.platform) html += `<div>🌐 ${data.platform.toUpperCase()}</div>`;
+                    
+                    // Gallery save result
+                    if (data.gallery && data.gallery.status === 'success') {
+                        html += `<div style="color:#10b981;margin-top:10px;">🖼️ ${data.gallery.message}</div>`;
+                    }
+                    
+                    // Drive upload result
+                    if (data.drive && data.drive.status === 'success') {
+                        html += `<div style="color:#4285f4;margin-top:10px;">☁️ ${data.drive.message}</div>`;
+                        if (data.drive.web_link) {
+                            html += `<a href="${data.drive.web_link}" target="_blank" style="color:#4285f4;">🔗 View in Drive</a>`;
+                        }
+                    }
+                    
+                    if (data.filename) {
+                        html += `<div style="margin-top:10px;">
+                                    <button class="btn btn-success" onclick="downloadFile('${data.filename}')">⬇️ Download File</button>
+                                    <button class="btn btn-gallery" onclick="saveToGallery('${data.filename}')">🖼️ Save to Gallery</button>
+                                 </div>`;
+                    }
+                    
+                    showResult(html, 'success');
+                } else {
+                    showResult(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                downloadBtn.disabled = false;
+            }
+        }
+
+        // ============================================
+        // FILE OPERATIONS
+        // ============================================
+        function downloadFile(filename) {
+            window.open(`/download-file/${encodeURIComponent(filename)}`, '_blank');
+        }
+
+        async function saveToGallery(filename) {
+            try {
+                showResult('⏳ Saving to gallery...', 'loading');
+                const response = await fetch('/save-gallery', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showResult(`✅ ${data.message}`, 'success');
+                } else {
+                    showResult(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ ${error.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // GOOGLE DRIVE FUNCTIONS
+        // ============================================
+        async function connectDrive() {
+            showResult('⏳ Connecting to Google Drive...', 'loading');
+            try {
+                const response = await fetch('/drive/auth', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    isDriveConnected = true;
+                    driveStatus.innerHTML = `<span class="connected">✅ ${data.message}</span>`;
+                    showResult('✅ Connected to Google Drive!', 'success');
+                    listFolders();
+                } else {
+                    driveStatus.innerHTML = `<span class="disconnected">❌ ${data.message}</span>`;
+                    showResult(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ ${error.message}`, 'error');
+            }
+        }
+
+        async function listFolders() {
+            try {
+                const response = await fetch('/drive/folders');
+                const data = await response.json();
+                
+                if (data.status === 'success' && data.folders) {
+                    let html = '<div style="margin-top:10px;"><strong>📁 Folders:</strong><ul style="list-style:none;padding:0;">';
+                    data.folders.forEach(folder => {
+                        const isSelected = selectedFolderId === folder.id;
+                        html += `<li style="padding:5px 0;border-bottom:1px solid #222;">
+                                    ${isSelected ? '✅ ' : '📁 '}
+                                    ${folder.name}
+                                    ${!isSelected ? `<button class="btn btn-secondary" style="padding:2px 10px;font-size:12px;margin-left:10px;" onclick="selectFolder('${folder.id}', '${folder.name}')">Select</button>` : ' ✅ Selected'}
+                                 </li>`;
+                    });
+                    html += '</ul></div>';
+                    folderList.innerHTML = html;
+                } else {
+                    folderList.innerHTML = '<div style="color:#888;">No folders found. Create one!</div>';
+                }
+            } catch (error) {
+                folderList.innerHTML = `<div style="color:#ef4444;">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function selectFolder(folderId, folderName) {
+            try {
+                const response = await fetch('/drive/folder/select', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder_id: folderId, folder_name: folderName })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    selectedFolderId = folderId;
+                    showResult(`✅ ${data.message}`, 'success');
+                    listFolders();
+                } else {
+                    showResult(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ ${error.message}`, 'error');
+            }
+        }
+
+        async function createFolder() {
+            const folderName = prompt('Enter folder name:');
+            if (!folderName) return;
+            
+            try {
+                const response = await fetch('/drive/folder/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder_name: folderName })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showResult(`✅ Folder created: ${data.folder_name}`, 'success');
+                    listFolders();
+                } else {
+                    showResult(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showResult(`❌ ${error.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // BULK DOWNLOAD
+        // ============================================
+        async function bulkDownload() {
+            const urls = bulkUrls.value.split('\n').filter(u => u.trim());
+            if (urls.length === 0) {
+                showResult('Please enter at least one URL', 'error', bulkResult);
+                return;
+            }
+
+            bulkDownloadBtn.disabled = true;
+            showResult(`⏳ Downloading ${urls.length} items...`, 'loading', bulkResult);
+
+            try {
+                const response = await fetch('/bulk-download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    let html = `✅ ${data.message}`;
+                    if (data.results) {
+                        const successes = data.results.filter(r => r.status === 'success').length;
+                        const errors = data.results.filter(r => r.status === 'error').length;
+                        html += `<div style="margin-top:10px;">✅ Success: ${successes} | ❌ Failed: ${errors}</div>`;
+                        data.results.forEach((r, i) => {
+                            const icon = r.status === 'success' ? '✅' : '❌';
+                            html += `<div style="font-size:13px;padding:2px 0;">${icon} ${r.message}</div>`;
+                        });
+                    }
+                    showResult(html, 'success', bulkResult);
+                } else {
+                    showResult(`❌ ${data.message}`, 'error', bulkResult);
+                }
+            } catch (error) {
+                showResult(`❌ ${error.message}`, 'error', bulkResult);
+            } finally {
+                bulkDownloadBtn.disabled = false;
+            }
+        }
+
+        // ============================================
+        // CLEAR DOWNLOADS
+        // ============================================
+        async function clearDownloads() {
+            if (!confirm('Clear all downloads?')) return;
+            try {
+                const response = await fetch('/clear-downloads', { method: 'POST' });
+                const data = await response.json();
+                showResult(data.status === 'success' ? `✅ ${data.message}` : `❌ ${data.message}`, 
+                          data.status === 'success' ? 'success' : 'error');
+            } catch (error) {
+                showResult(`❌ ${error.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        previewBtn.addEventListener('click', previewVideo);
+        downloadBtn.addEventListener('click', downloadVideo);
+        
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') downloadVideo();
+        });
+
+        bulkDownloadBtn.addEventListener('click', bulkDownload);
+        clearBtn.addEventListener('click', clearDownloads);
+
+        connectDriveBtn.addEventListener('click', connectDrive);
+        selectFolderBtn.addEventListener('click', listFolders);
+        createFolderBtn.addEventListener('click', createFolder);
+
+        saveGalleryBtn.addEventListener('click', async () => {
+            if (currentDownload) {
+                await saveToGallery(currentDownload.filename);
+            }
+        });
+
+        saveDriveBtn.addEventListener('click', async () => {
+            if (currentDownload && selectedFolderId) {
+                // Upload to Drive
+                showResult('⏳ Uploading to Drive...', 'loading');
+                try {
+                    const response = await fetch('/drive/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            filename: currentDownload.filename,
+                            folder_id: selectedFolderId 
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        showResult(`✅ ${data.message}`, 'success');
+                    } else {
+                        showResult(`❌ ${data.message}`, 'error');
+                    }
+                } catch (error) {
+                    showResult(`❌ ${error.message}`, 'error');
+                }
+            } else if (!selectedFolderId) {
+                showResult('Please select a Drive folder first', 'error');
+            }
+        });
+
+        // ============================================
+        // INIT
+        // ============================================
+        console.log('🚀 Universal Social Media Downloader loaded!');
+        console.log('💾 Save options: Local | Gallery | Google Drive');
+    </script>
+</body>
+</html>
