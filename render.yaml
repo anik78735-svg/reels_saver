@@ -1,9 +1,27 @@
 services:
   - type: web
-    name: videos-downloader
+    name: reels-saver
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_PROJECT_ID
+        sync: false
+      - key: GOOGLE_AUTH_URI
+        sync: false
+      - key: GOOGLE_TOKEN_URI
+        sync: false
+      - key: GOOGLE_AUTH_PROVIDER_CERT_URL
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: RAPIDAPI_KEY
+        sync: false
