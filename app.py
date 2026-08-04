@@ -285,6 +285,9 @@ drive_manager = GoogleDriveManager()
 # ============================================
 # TIKTOK DOWNLOADER - MULTI METHOD
 # ============================================
+# ============================================
+# TIKTOK DOWNLOADER - FIXED
+# ============================================
 class TikTokDownloader:
     def __init__(self):
         self.session = requests.Session()
@@ -300,19 +303,26 @@ class TikTokDownloader:
     def download(self, url):
         if not is_valid_tiktok_url(url):
             return {'status': 'error', 'message': 'Invalid TikTok URL'}
+        
         methods = [self._download_tikwm, self._download_ytdlp, self._download_rapidapi]
         errors = []
+        
         for method in methods:
             try:
                 print(f"Trying {method.__name__}...")
                 result = method(url)
                 if result and result.get('video_url'):
-                    print(f"{method.__name__} success!")
+                    print(f"{method.__name__} success! Video URL found.")
                     return result
+                elif result and result.get('status') == 'success':
+                    print(f"{method.__name__} returned success but no video_url")
+                else:
+                    print(f"{method.__name__} failed or returned no data")
             except Exception as e:
                 print(f"{method.__name__} error: {str(e)}")
                 errors.append(f"{method.__name__}: {str(e)}")
                 continue
+        
         return {'status': 'error', 'message': 'All TikTok methods failed', 'errors': errors}
 
     def _download_tikwm(self, url):
@@ -325,7 +335,8 @@ class TikTokDownloader:
                     video_url = video_data.get('play', '')
                     if video_url:
                         return {
-                            'status': 'success', 'video_url': video_url,
+                            'status': 'success',
+                            'video_url': video_url,
                             'title': video_data.get('title', 'TikTok Video'),
                             'author': video_data.get('author', {}).get('unique_id', 'Unknown'),
                             'duration': video_data.get('duration', 0),
@@ -335,31 +346,79 @@ class TikTokDownloader:
                             'thumbnail': video_data.get('cover', ''),
                             'source': 'tikwm'
                         }
+                    else:
+                        print("TikWM: No video_url in response")
+            else:
+                print(f"TikWM: HTTP {response.status_code}")
         except Exception as e:
             print(f"TikWM error: {e}")
         return None
 
     def _download_ytdlp(self, url):
         if yt_dlp is None:
+            print("yt-dlp not installed")
             return None
         try:
             ydl_opts = {
-                'quiet': True, 'no_warnings': True, 'format': 'best',
-                'extract_flat': False, 'ignoreerrors': True, 'retries': 10,
-                'http_headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                'quiet': True,
+                'no_warnings': True,
+                'format': 'best',
+                'extract_flat': False,
+                'ignoreerrors': True,
+                'retries': 10,
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                if info and info.get('url'):
-                    return {
-                        'status': 'success', 'video_url': info['url'],
-                        'title': info.get('title', 'TikTok Video'),
-                        'author': info.get('uploader', 'Unknown'),
-                        'duration': info.get('duration', 0),
-                        'views': info.get('view_count', 0),
-                        'likes': info.get('like_count', 0),
-                        'source': 'ytdlp'
-                    }
+                if info:
+                    print(f"yt-dlp info keys: {list(info.keys())}")
+                    
+                    # Try different ways to get video URL
+                    video_url = None
+                    
+                    # Method 1: Direct url
+                    if info.get('url'):
+                        video_url = info['url']
+                        print(f"yt-dlp: Found 'url' key")
+                    
+                    # Method 2: Webpage URL (for TikTok)
+                    elif info.get('webpage_url'):
+                        # Sometimes webpage_url is the actual video URL
+                        video_url = info['webpage_url']
+                        print(f"yt-dlp: Found 'webpage_url' key")
+                    
+                    # Method 3: Format URL
+                    elif info.get('formats'):
+                        for fmt in info['formats']:
+                            if fmt.get('url'):
+                                video_url = fmt['url']
+                                print(f"yt-dlp: Found URL in formats")
+                                break
+                    
+                    # Method 4: Entries (for playlists)
+                    elif info.get('entries'):
+                        entry = info['entries'][0] if info['entries'] else None
+                        if entry and entry.get('url'):
+                            video_url = entry['url']
+                            print(f"yt-dlp: Found URL in entries")
+                    
+                    if video_url:
+                        return {
+                            'status': 'success',
+                            'video_url': video_url,
+                            'title': info.get('title', 'TikTok Video'),
+                            'author': info.get('uploader', 'Unknown'),
+                            'duration': info.get('duration', 0),
+                            'views': info.get('view_count', 0),
+                            'likes': info.get('like_count', 0),
+                            'source': 'ytdlp'
+                        }
+                    else:
+                        print(f"yt-dlp: No video URL found. Info: {info}")
+                else:
+                    print("yt-dlp: No info returned")
         except Exception as e:
             print(f"yt-dlp error: {e}")
         return None
@@ -377,12 +436,17 @@ class TikTokDownloader:
             if res.status == 200:
                 result = json.loads(data)
                 if 'data' in result and 'video' in result['data']:
-                    return {
-                        'status': 'success', 'video_url': result['data']['video'],
-                        'title': result['data'].get('title', 'TikTok Video'),
-                        'author': result['data'].get('author', {}).get('unique_id', 'Unknown'),
-                        'source': 'rapidapi'
-                    }
+                    video_url = result['data']['video']
+                    if video_url:
+                        return {
+                            'status': 'success',
+                            'video_url': video_url,
+                            'title': result['data'].get('title', 'TikTok Video'),
+                            'author': result['data'].get('author', {}).get('unique_id', 'Unknown'),
+                            'source': 'rapidapi'
+                        }
+            else:
+                print(f"RapidAPI: HTTP {res.status}")
         except Exception as e:
             print(f"RapidAPI error: {e}")
         return None
@@ -1139,11 +1203,15 @@ def api_download():
         platform = downloader.detect_platform(url)
         result = downloader.download_content(url, DOWNLOAD_DIR)
         
+        # LOG: Check what result contains
+        print(f"Download result: {json.dumps(result, indent=2)[:500]}")
+        
         if result.get('status') == 'success':
             if 'filepath' in result:
                 filepath = result['filepath']
                 filename = result.get('filename', os.path.basename(filepath))
                 result['filename'] = filename
+                result['download_link'] = f"/download-file/{filename}"
                 
                 if save_to == 'gallery':
                     gallery_result = GallerySaver.save_to_gallery(filepath, filename)
@@ -1152,12 +1220,15 @@ def api_download():
                 if save_to == 'drive':
                     drive_result = drive_manager.upload_file(filepath, filename)
                     result['drive'] = drive_result
+            
+            # Always return download link
+            if 'filename' in result:
+                result['download_link'] = f"/download-file/{result['filename']}"
         
         result['platform'] = platform
         return jsonify(result)
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
-
 @app.route('/api/bulk', methods=['POST'])
 def api_bulk():
     """Bulk download via API"""
