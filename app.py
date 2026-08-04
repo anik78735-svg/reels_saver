@@ -1690,6 +1690,11 @@ def api_docs():
         ]
     })
 
+
+@app.route('/api-tester')
+def api_tester():
+    return render_template('api_tester.html')
+    
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Not found'}), 404
