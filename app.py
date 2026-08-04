@@ -422,6 +422,7 @@ class InstagramDownloader:
             username = self.extract_instagram_username(url)
             if not username:
                 return None
+            # Try Instagram Looter API
             conn = http.client.HTTPSConnection("instagram-looter2.p.rapidapi.com")
             headers = {'x-rapidapi-key': RAPIDAPI_KEY, 'x-rapidapi-host': "instagram-looter2.p.rapidapi.com"}
             conn.request("GET", f"/profile?username={username}", headers=headers)
@@ -833,18 +834,6 @@ extractor = VideoExtractor()
 # ============================================
 # GALLERY SAVER
 # ============================================
-# NOTE: This app runs on a remote server (e.g. Render). There is NO way for
-# server-side code to write into a phone/laptop's personal Photos/Gallery
-# app directly - the server has its own filesystem, completely separate
-# from the user's device. The old code silently copied files into the
-# SERVER's own '~/Videos' folder and reported "success", which is why
-# users never actually saw anything in their own gallery.
-#
-# The real fix: the browser must download the file itself (a plain HTTP
-# file download). Once it lands in the phone's "Downloads" folder, most
-# Android/gallery apps will index video files automatically. This class
-# is now just a helper that confirms the file is ready to be downloaded
-# by the browser - it does not claim to save anything on the user's device.
 class GallerySaver:
     @staticmethod
     def save_to_gallery(file_path, filename):
@@ -1072,8 +1061,285 @@ class UniversalDownloader:
 downloader = UniversalDownloader()
 
 # ============================================
-# FLASK ROUTES
+# API ROUTES - WITH /api PREFIX
 # ============================================
+
+@app.route('/api/health', methods=['GET'])
+def api_health():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'version': '3.1.0',
+        'timestamp': datetime.now().isoformat(),
+        'platforms': ['tiktok', 'youtube', 'instagram', 'twitter', 'facebook', 'reddit', 'vimeo', 'twitch', 'dailymotion']
+    })
+
+@app.route('/api/version', methods=['GET'])
+def api_version():
+    """Version info endpoint"""
+    return jsonify({
+        'version': '3.1.0',
+        'name': 'Universal Social Media Downloader API',
+        'features': {
+            'download': True,
+            'preview': True,
+            'bulk': True,
+            'gallery_save': True,
+            'google_drive': True,
+            'extraction': True,
+            'platforms': ['tiktok', 'youtube', 'instagram', 'twitter', 'facebook', 'reddit', 'vimeo', 'twitch', 'dailymotion']
+        }
+    })
+
+@app.route('/api/platforms', methods=['GET'])
+def api_platforms():
+    """List supported platforms"""
+    return jsonify({
+        'status': 'success',
+        'data': {
+            'platforms': [
+                {'id': 'tiktok', 'name': 'TikTok', 'icon': '🎵'},
+                {'id': 'youtube', 'name': 'YouTube', 'icon': '▶️'},
+                {'id': 'instagram', 'name': 'Instagram', 'icon': '📸'},
+                {'id': 'twitter', 'name': 'Twitter/X', 'icon': '🐦'},
+                {'id': 'facebook', 'name': 'Facebook', 'icon': '📘'},
+                {'id': 'reddit', 'name': 'Reddit', 'icon': '🔴'},
+                {'id': 'vimeo', 'name': 'Vimeo', 'icon': '🎬'},
+                {'id': 'twitch', 'name': 'Twitch', 'icon': '📺'},
+                {'id': 'dailymotion', 'name': 'Dailymotion', 'icon': '🎥'}
+            ]
+        }
+    })
+
+@app.route('/api/preview', methods=['POST'])
+def api_preview():
+    """Preview video via API"""
+    try:
+        data = request.get_json()
+        url = data.get('url', '').strip()
+        if not url:
+            return jsonify({'status': 'error', 'message': 'URL is required'}), 400
+        result = preview.get_video_info(url)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/download', methods=['POST'])
+def api_download():
+    """Download video via API"""
+    try:
+        data = request.get_json()
+        url = data.get('url', '').strip()
+        save_to = data.get('save_to', 'local')
+        extract = data.get('extract', False)
+        
+        if not url:
+            return jsonify({'status': 'error', 'message': 'URL is required'}), 400
+        
+        platform = downloader.detect_platform(url)
+        result = downloader.download_content(url, DOWNLOAD_DIR)
+        
+        if result.get('status') == 'success':
+            if 'filepath' in result:
+                filepath = result['filepath']
+                filename = result.get('filename', os.path.basename(filepath))
+                result['filename'] = filename
+                
+                if save_to == 'gallery':
+                    gallery_result = GallerySaver.save_to_gallery(filepath, filename)
+                    result['gallery'] = gallery_result
+                
+                if save_to == 'drive':
+                    drive_result = drive_manager.upload_file(filepath, filename)
+                    result['drive'] = drive_result
+        
+        result['platform'] = platform
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/bulk', methods=['POST'])
+def api_bulk():
+    """Bulk download via API"""
+    try:
+        data = request.get_json()
+        urls = data.get('urls', [])
+        save_to = data.get('save_to', 'local')
+        
+        if not urls:
+            return jsonify({'status': 'error', 'message': 'URLs list is required'}), 400
+        
+        results = []
+        for url in urls:
+            if url.strip():
+                result = downloader.download_content(url.strip(), DOWNLOAD_DIR)
+                result['url'] = url
+                
+                if result.get('status') == 'success' and 'filepath' in result:
+                    filepath = result['filepath']
+                    filename = result.get('filename', os.path.basename(filepath))
+                    result['filename'] = filename
+                    
+                    if save_to == 'gallery':
+                        gallery_result = GallerySaver.save_to_gallery(filepath, filename)
+                        result['gallery'] = gallery_result
+                    
+                    if save_to == 'drive':
+                        drive_result = drive_manager.upload_file(filepath, filename)
+                        result['drive'] = drive_result
+                
+                results.append(result)
+                time.sleep(2)
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Processed {len(results)} URLs',
+            'results': results
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/extract', methods=['POST'])
+def api_extract():
+    """Extract video via API"""
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        extract_type = data.get('extract_type', 'all')
+        
+        if not filename:
+            return jsonify({'status': 'error', 'message': 'Filename required'}), 400
+        
+        file_path = None
+        for root, dirs, files in os.walk(DOWNLOAD_DIR):
+            if filename in files:
+                file_path = os.path.join(root, filename)
+                break
+        
+        if not file_path:
+            return jsonify({'status': 'error', 'message': 'File not found'}), 404
+        
+        if extract_type == 'all':
+            result = extractor.extract_all(file_path, EXTRACT_DIR)
+        elif extract_type == 'audio':
+            result = extractor.extract_audio(file_path, EXTRACT_DIR)
+        elif extract_type == 'thumbnail':
+            result = extractor.extract_thumbnail(file_path, EXTRACT_DIR)
+        elif extract_type == 'subtitles':
+            result = extractor.extract_subtitles(file_path, EXTRACT_DIR)
+        elif extract_type == 'metadata':
+            result = extractor.extract_metadata(file_path)
+        else:
+            return jsonify({'status': 'error', 'message': 'Invalid extract_type'}), 400
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Extraction completed',
+            'result': result
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/drive/auth', methods=['POST'])
+def api_drive_auth():
+    """Google Drive authentication via API"""
+    try:
+        data = request.get_json() or {}
+        action = data.get('action', 'connect')
+        code = data.get('code')
+        
+        if action == 'status':
+            if drive_manager.service:
+                user_info = drive_manager.service.about().get(fields='user').execute()
+                return jsonify({
+                    'status': 'success',
+                    'connected': True,
+                    'email': user_info['user']['emailAddress']
+                })
+            else:
+                return jsonify({
+                    'status': 'success',
+                    'connected': False,
+                    'message': 'Not connected to Google Drive'
+                })
+        elif action == 'connect':
+            if code:
+                result = drive_manager.authenticate_with_code(code)
+                return jsonify(result)
+            else:
+                result = drive_manager.get_auth_url()
+                return jsonify(result)
+        else:
+            return jsonify({'status': 'error', 'message': 'Invalid action'}), 400
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/drive/folders', methods=['GET'])
+def api_drive_folders():
+    """List Google Drive folders via API"""
+    result = drive_manager.list_folders()
+    return jsonify(result)
+
+@app.route('/api/drive/upload', methods=['POST'])
+def api_drive_upload():
+    """Upload to Google Drive via API"""
+    try:
+        data = request.get_json()
+        filename = data.get('filename')
+        folder_id = data.get('folder_id')
+        
+        if not filename:
+            return jsonify({'status': 'error', 'message': 'Filename required'}), 400
+        
+        file_path = None
+        for root, dirs, files in os.walk(DOWNLOAD_DIR):
+            if filename in files:
+                file_path = os.path.join(root, filename)
+                break
+        
+        if not file_path:
+            return jsonify({'status': 'error', 'message': 'File not found'}), 404
+        
+        result = drive_manager.upload_file(file_path, filename, folder_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/drive/folder/select', methods=['POST'])
+def api_drive_select_folder():
+    """Select Google Drive folder via API"""
+    try:
+        data = request.get_json()
+        folder_id = data.get('folder_id')
+        folder_name = data.get('folder_name')
+        
+        if not folder_id:
+            return jsonify({'status': 'error', 'message': 'Folder ID required'}), 400
+        
+        result = drive_manager.select_folder(folder_id, folder_name)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/drive/folder/create', methods=['POST'])
+def api_drive_create_folder():
+    """Create Google Drive folder via API"""
+    try:
+        data = request.get_json()
+        folder_name = data.get('folder_name')
+        
+        if not folder_name:
+            return jsonify({'status': 'error', 'message': 'Folder name required'}), 400
+        
+        result = drive_manager.create_folder(folder_name)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+# ============================================
+# MAIN FLASK ROUTES
+# ============================================
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -1108,28 +1374,18 @@ def download():
                 filepath = result['filepath']
                 filename = result.get('filename', os.path.basename(filepath))
                 result['filename'] = filename
-
-                # 'gallery' can no longer be silently faked on the server.
-                # We only confirm the file exists and give the browser a
-                # direct download link; actual gallery save happens on the
-                # user's device via the browser download (frontend must call
-                # GET /download-file/<filename>).
                 if save_to == 'gallery':
                     gallery_result = GallerySaver.save_to_gallery(filepath, filename)
                     result['gallery'] = gallery_result
-
                 if save_to == 'drive':
                     drive_result = drive_manager.upload_file(filepath, filename)
                     result['drive'] = drive_result
                     if drive_result.get('status') != 'success':
-                        # Don't hide the failure behind an overall "success"
                         result['status'] = 'partial_success'
                         result['message'] = f"Video downloaded but Google Drive upload failed: {drive_result.get('message')}"
-
                 if extract:
                     extraction_result = extractor.extract_all(filepath, EXTRACT_DIR)
                     result['extraction'] = extraction_result
-
         result['platform'] = platform
         return jsonify(result)
     except Exception as e:
@@ -1357,8 +1613,6 @@ def download_file(filename):
         file_path = os.path.join(DOWNLOAD_DIR, safe_filename)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             return send_file(file_path, as_attachment=True)
-        # Fallback: search subfolders (platform_timestamp dirs) since files
-        # are actually stored inside DOWNLOAD_DIR/<platform>_<timestamp>/
         for root, dirs, files in os.walk(DOWNLOAD_DIR):
             if safe_filename in files:
                 return send_file(os.path.join(root, safe_filename), as_attachment=True)
@@ -1421,19 +1675,18 @@ def api_docs():
         'name': 'Universal Social Media Downloader API',
         'version': '3.1.0',
         'endpoints': [
-            {'path': '/preview', 'method': 'POST', 'description': 'Get video preview info'},
-            {'path': '/download', 'method': 'POST', 'description': 'Download a video'},
-            {'path': '/bulk-download', 'method': 'POST', 'description': 'Download multiple videos'},
-            {'path': '/extract', 'method': 'POST', 'description': 'Extract audio, thumbnail, subtitles'},
-            {'path': '/extract/<type>/<filename>', 'method': 'GET', 'description': 'Download extracted file'},
-            {'path': '/downloads', 'method': 'GET', 'description': 'List downloaded files'},
-            {'path': '/download-file/<filename>', 'method': 'GET', 'description': 'Download a file to your device'},
-            {'path': '/clear-downloads', 'method': 'POST', 'description': 'Clear all downloads'},
-            {'path': '/drive/auth', 'method': 'POST', 'description': 'Google Drive authentication'},
-            {'path': '/drive/folders', 'method': 'GET', 'description': 'List Google Drive folders'},
-            {'path': '/drive/upload', 'method': 'POST', 'description': 'Upload to Google Drive'},
-            {'path': '/supported-platforms', 'method': 'GET', 'description': 'List supported platforms'},
-            {'path': '/api-docs', 'method': 'GET', 'description': 'API documentation'}
+            {'path': '/api/health', 'method': 'GET', 'description': 'Health check'},
+            {'path': '/api/version', 'method': 'GET', 'description': 'Version info'},
+            {'path': '/api/platforms', 'method': 'GET', 'description': 'List supported platforms'},
+            {'path': '/api/preview', 'method': 'POST', 'description': 'Get video preview info'},
+            {'path': '/api/download', 'method': 'POST', 'description': 'Download a video'},
+            {'path': '/api/bulk', 'method': 'POST', 'description': 'Download multiple videos'},
+            {'path': '/api/extract', 'method': 'POST', 'description': 'Extract audio, thumbnail, subtitles'},
+            {'path': '/api/drive/auth', 'method': 'POST', 'description': 'Google Drive authentication'},
+            {'path': '/api/drive/folders', 'method': 'GET', 'description': 'List Google Drive folders'},
+            {'path': '/api/drive/upload', 'method': 'POST', 'description': 'Upload to Google Drive'},
+            {'path': '/api/drive/folder/select', 'method': 'POST', 'description': 'Select Google Drive folder'},
+            {'path': '/api/drive/folder/create', 'method': 'POST', 'description': 'Create Google Drive folder'},
         ]
     })
 
@@ -1461,6 +1714,16 @@ if __name__ == '__main__':
     print("  - Twitter/X")
     print("  - Facebook (Multi-API Fallback)")
     print("  - Reddit, Vimeo, Dailymotion, Twitch")
+    print("=" * 60)
+    print("API Routes with /api prefix:")
+    print("  - /api/health")
+    print("  - /api/version")
+    print("  - /api/platforms")
+    print("  - /api/preview")
+    print("  - /api/download")
+    print("  - /api/bulk")
+    print("  - /api/extract")
+    print("  - /api/drive/*")
     print("=" * 60)
     print("Features: Auto-detection, Multi-API fallback, Rate limiting, CORS")
     print("=" * 60)
