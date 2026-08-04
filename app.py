@@ -116,6 +116,10 @@ class GoogleDriveManager:
         self.auth_provider_cert_url = os.environ.get('GOOGLE_AUTH_PROVIDER_CERT_URL', 'https://www.googleapis.com/oauth2/v1/certs')
         self.redirect_uri = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/drive/callback')
 
+        # Persist selected folder across restarts / worker respawns
+        self.folder_file = 'selected_folder.json'
+        self._load_selected_folder()
+
         if self.enabled:
             self._load_token()
 
@@ -137,6 +141,25 @@ class GoogleDriveManager:
         except Exception as e:
             print(f"Could not save token: {e}")
         return False
+
+    def _load_selected_folder(self):
+        try:
+            if os.path.exists(self.folder_file):
+                with open(self.folder_file, 'r') as f:
+                    data = json.load(f)
+                    self.selected_folder_id = data.get('folder_id')
+                    self.selected_folder_name = data.get('folder_name')
+        except Exception as e:
+            print(f"Could not load selected folder: {e}")
+
+    def _save_selected_folder(self):
+        try:
+            with open(self.folder_file, 'w') as f:
+                json.dump({'folder_id': self.selected_folder_id, 'folder_name': self.selected_folder_name}, f)
+            return True
+        except Exception as e:
+            print(f"Could not save selected folder: {e}")
+            return False
 
     def get_credentials_config(self):
         return {
@@ -228,15 +251,18 @@ class GoogleDriveManager:
     def select_folder(self, folder_id, folder_name):
         self.selected_folder_id = folder_id
         self.selected_folder_name = folder_name
+        self._save_selected_folder()
         return {'status': 'success', 'message': f'Selected folder: {folder_name}'}
 
     def upload_file(self, file_path, file_name, folder_id=None):
         if not self.service:
-            return {'status': 'error', 'message': 'Not authenticated'}
+            return {'status': 'error', 'message': 'Not authenticated. Please connect Google Drive first.'}
         if not folder_id:
             folder_id = self.selected_folder_id
         if not folder_id:
-            return {'status': 'error', 'message': 'No folder selected'}
+            return {'status': 'error', 'message': 'No Drive folder selected. Please select a folder first.'}
+        if not os.path.exists(file_path):
+            return {'status': 'error', 'message': f'Local file not found: {file_path}'}
         try:
             file_metadata = {'name': file_name, 'parents': [folder_id]}
             media = MediaFileUpload(file_path, mimetype='video/mp4', resumable=True)
@@ -807,26 +833,28 @@ extractor = VideoExtractor()
 # ============================================
 # GALLERY SAVER
 # ============================================
+# NOTE: This app runs on a remote server (e.g. Render). There is NO way for
+# server-side code to write into a phone/laptop's personal Photos/Gallery
+# app directly - the server has its own filesystem, completely separate
+# from the user's device. The old code silently copied files into the
+# SERVER's own '~/Videos' folder and reported "success", which is why
+# users never actually saw anything in their own gallery.
+#
+# The real fix: the browser must download the file itself (a plain HTTP
+# file download). Once it lands in the phone's "Downloads" folder, most
+# Android/gallery apps will index video files automatically. This class
+# is now just a helper that confirms the file is ready to be downloaded
+# by the browser - it does not claim to save anything on the user's device.
 class GallerySaver:
     @staticmethod
     def save_to_gallery(file_path, filename):
-        try:
-            system = os.name
-            if system == 'nt':
-                videos_folder = os.path.join(os.environ['USERPROFILE'], 'Videos')
-                downloads_folder = os.path.join(os.environ['USERPROFILE'], 'Downloads')
-                destination = os.path.join(videos_folder, filename)
-                shutil.copy2(file_path, destination)
-                shutil.copy2(file_path, os.path.join(downloads_folder, filename))
-                return {'status': 'success', 'message': 'Saved to Videos and Downloads', 'path': destination}
-            elif system == 'posix':
-                videos_folder = os.path.expanduser('~/Videos') or os.path.expanduser('~/Downloads')
-                destination = os.path.join(videos_folder, filename)
-                shutil.copy2(file_path, destination)
-                return {'status': 'success', 'message': 'Saved to Videos folder', 'path': destination}
-            return {'status': 'info', 'message': 'File saved in downloads', 'path': file_path}
-        except Exception as e:
-            return {'status': 'error', 'message': str(e)}
+        if not os.path.exists(file_path):
+            return {'status': 'error', 'message': 'File not found on server'}
+        return {
+            'status': 'success',
+            'message': 'File is ready. Use the download link to save it to your device.',
+            'download_url': f'/download-file/{filename}'
+        }
 
 # ============================================
 # VIDEO PREVIEW
@@ -1080,15 +1108,28 @@ def download():
                 filepath = result['filepath']
                 filename = result.get('filename', os.path.basename(filepath))
                 result['filename'] = filename
+
+                # 'gallery' can no longer be silently faked on the server.
+                # We only confirm the file exists and give the browser a
+                # direct download link; actual gallery save happens on the
+                # user's device via the browser download (frontend must call
+                # GET /download-file/<filename>).
                 if save_to == 'gallery':
                     gallery_result = GallerySaver.save_to_gallery(filepath, filename)
                     result['gallery'] = gallery_result
+
                 if save_to == 'drive':
                     drive_result = drive_manager.upload_file(filepath, filename)
                     result['drive'] = drive_result
+                    if drive_result.get('status') != 'success':
+                        # Don't hide the failure behind an overall "success"
+                        result['status'] = 'partial_success'
+                        result['message'] = f"Video downloaded but Google Drive upload failed: {drive_result.get('message')}"
+
                 if extract:
                     extraction_result = extractor.extract_all(filepath, EXTRACT_DIR)
                     result['extraction'] = extraction_result
+
         result['platform'] = platform
         return jsonify(result)
     except Exception as e:
@@ -1118,6 +1159,9 @@ def bulk_download():
                     if save_to == 'drive':
                         drive_result = drive_manager.upload_file(filepath, filename)
                         result['drive'] = drive_result
+                        if drive_result.get('status') != 'success':
+                            result['status'] = 'partial_success'
+                            result['message'] = f"Video downloaded but Google Drive upload failed: {drive_result.get('message')}"
                 results.append(result)
                 time.sleep(2)
         return jsonify({'status': 'success', 'message': f'Processed {len(results)} URLs', 'results': results})
@@ -1207,7 +1251,12 @@ def drive_status():
     try:
         if drive_manager.service:
             user_info = drive_manager.service.about().get(fields='user').execute()
-            return jsonify({'status': 'success', 'connected': True, 'email': user_info['user']['emailAddress']})
+            return jsonify({
+                'status': 'success', 'connected': True,
+                'email': user_info['user']['emailAddress'],
+                'selected_folder_id': drive_manager.selected_folder_id,
+                'selected_folder_name': drive_manager.selected_folder_name
+            })
         else:
             return jsonify({'status': 'success', 'connected': False, 'message': 'Not connected to Google Drive'})
     except Exception as e:
@@ -1308,6 +1357,11 @@ def download_file(filename):
         file_path = os.path.join(DOWNLOAD_DIR, safe_filename)
         if os.path.exists(file_path) and os.path.isfile(file_path):
             return send_file(file_path, as_attachment=True)
+        # Fallback: search subfolders (platform_timestamp dirs) since files
+        # are actually stored inside DOWNLOAD_DIR/<platform>_<timestamp>/
+        for root, dirs, files in os.walk(DOWNLOAD_DIR):
+            if safe_filename in files:
+                return send_file(os.path.join(root, safe_filename), as_attachment=True)
         return jsonify({'error': 'File not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1354,7 +1408,7 @@ def supported_platforms():
         ],
         'features': [
             'Auto-platform detection', 'Bulk downloads', 'Video preview',
-            'Gallery save', 'Google Drive integration', 'Audio extraction (MP3)',
+            'Direct browser download', 'Google Drive integration', 'Audio extraction (MP3)',
             'Thumbnail extraction', 'Subtitle extraction', 'Metadata extraction',
             'Playlist support', 'Stories download', 'Multi-API fallback (TikTok, FB, IG)',
             'Rate limiting protection', 'CORS enabled'
@@ -1365,7 +1419,7 @@ def supported_platforms():
 def api_docs():
     return jsonify({
         'name': 'Universal Social Media Downloader API',
-        'version': '3.0.0',
+        'version': '3.1.0',
         'endpoints': [
             {'path': '/preview', 'method': 'POST', 'description': 'Get video preview info'},
             {'path': '/download', 'method': 'POST', 'description': 'Download a video'},
@@ -1373,7 +1427,7 @@ def api_docs():
             {'path': '/extract', 'method': 'POST', 'description': 'Extract audio, thumbnail, subtitles'},
             {'path': '/extract/<type>/<filename>', 'method': 'GET', 'description': 'Download extracted file'},
             {'path': '/downloads', 'method': 'GET', 'description': 'List downloaded files'},
-            {'path': '/download-file/<filename>', 'method': 'GET', 'description': 'Download a file'},
+            {'path': '/download-file/<filename>', 'method': 'GET', 'description': 'Download a file to your device'},
             {'path': '/clear-downloads', 'method': 'POST', 'description': 'Clear all downloads'},
             {'path': '/drive/auth', 'method': 'POST', 'description': 'Google Drive authentication'},
             {'path': '/drive/folders', 'method': 'GET', 'description': 'List Google Drive folders'},
@@ -1398,7 +1452,7 @@ def ratelimit_handler(e):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print("=" * 60)
-    print("SOCIAL MEDIA DOWNLOADER v3.0 (Complete)")
+    print("SOCIAL MEDIA DOWNLOADER v3.1 (Complete)")
     print("=" * 60)
     print("Supported Platforms:")
     print("  - TikTok (Multi-API Fallback)")
