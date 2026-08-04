@@ -7,6 +7,7 @@
     let currentDownload = null;
     let isDriveConnected = false;
     let selectedFolderId = null;
+    let selectedFolderName = null;
     let currentVideoUrl = null;
     let totalDownloads = parseInt(localStorage.getItem('totalDownloads') || '0');
 
@@ -96,6 +97,19 @@
         return div.innerHTML;
     }
 
+    // Triggers a real browser file download (lands in the device's own
+    // Downloads folder). This is the ONLY way a web app can get a file
+    // onto the user's phone/laptop - there is no API that lets a server
+    // write directly into someone's personal Gallery/Photos app.
+    function triggerBrowserDownload(filename) {
+        const a = document.createElement('a');
+        a.href = '/download-file/' + encodeURIComponent(filename);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
     // ============================================
     // CHECK DRIVE STATUS
     // ============================================
@@ -111,6 +125,13 @@
                 if (dot) dot.className = 'status-dot connected';
                 connectDriveBtn.textContent = '✅ Connected';
                 connectDriveBtn.disabled = true;
+
+                // Sync selected folder from server (persists across reloads
+                // and server restarts, since it's now saved server-side).
+                if (data.selected_folder_id) {
+                    selectedFolderId = data.selected_folder_id;
+                    selectedFolderName = data.selected_folder_name;
+                }
             } else {
                 isDriveConnected = false;
                 driveStatusText.textContent = 'Not connected';
@@ -233,10 +254,14 @@
 
             const data = await response.json();
 
-            if (data.status === 'success') {
+            // 'partial_success' happens when the video downloaded fine on the
+            // server but a follow-up step (e.g. Drive upload) failed - still
+            // worth showing the file to the user instead of a bare error.
+            if (data.status === 'success' || data.status === 'partial_success') {
                 updateTotalDownloads();
 
-                let html = '<strong>✅ ' + (data.message || 'Download successful') + '</strong>';
+                const isPartial = data.status === 'partial_success';
+                let html = '<strong>' + (isPartial ? '⚠️ ' : '✅ ') + (data.message || 'Download successful') + '</strong>';
 
                 // Metadata
                 html += '<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
@@ -246,16 +271,24 @@
                 if (data.size) html += '<div style="background:rgba(255,255,255,0.04);padding:6px 8px;border-radius:6px;"><small style="color:var(--text-muted);">Size</small><br><strong style="font-size:13px;">' + formatBytes(data.size) + '</strong></div>';
                 html += '</div>';
 
-                // Gallery save result
-                if (data.gallery && data.gallery.status === 'success') {
+                // Gallery: actually trigger the browser download here, since
+                // there is no server-side "gallery" to save into.
+                if (saveTo === 'gallery' && data.filename) {
+                    triggerBrowserDownload(data.filename);
+                    html += '<div style="color:var(--success);margin-top:8px;">🖼️ File download started — check your device\'s Downloads/Gallery.</div>';
+                } else if (data.gallery && data.gallery.status === 'success') {
                     html += '<div style="color:var(--success);margin-top:8px;">🖼️ ' + data.gallery.message + '</div>';
                 }
 
                 // Drive upload result
-                if (data.drive && data.drive.status === 'success') {
-                    html += '<div style="color:#4caf50;margin-top:8px;">☁️ ' + data.drive.message + '</div>';
-                    if (data.drive.web_link) {
-                        html += '<a href="' + data.drive.web_link + '" target="_blank" rel="noopener" style="color:#4caf50;display:inline-block;margin-top:4px;">🔗 View in Drive</a>';
+                if (data.drive) {
+                    if (data.drive.status === 'success') {
+                        html += '<div style="color:#4caf50;margin-top:8px;">☁️ ' + data.drive.message + '</div>';
+                        if (data.drive.web_link) {
+                            html += '<a href="' + data.drive.web_link + '" target="_blank" rel="noopener" style="color:#4caf50;display:inline-block;margin-top:4px;">🔗 View in Drive</a>';
+                        }
+                    } else {
+                        html += '<div style="color:var(--error);margin-top:8px;">☁️ Drive upload failed: ' + escapeHtml(data.drive.message) + '</div>';
                     }
                 }
 
@@ -269,7 +302,7 @@
                     html += '</div>';
                 }
 
-                showResult(html, 'success');
+                showResult(html, isPartial ? 'info' : 'success');
             } else {
                 showResult('❌ ' + (data.message || 'Download failed'), 'error');
             }
@@ -284,26 +317,16 @@
     // FILE OPERATIONS (Global for onclick)
     // ============================================
     window.downloadFile = function(filename) {
-        window.open('/download-file/' + encodeURIComponent(filename), '_blank');
+        triggerBrowserDownload(filename);
     };
 
-    window.saveToGallery = async function(filename) {
-        try {
-            showResult('⏳ Saving to gallery...', 'loading');
-            const response = await fetch('/save-gallery', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename })
-            });
-            const data = await response.json();
-            if (data.status === 'success') {
-                showResult('✅ ' + data.message, 'success');
-            } else {
-                showResult('❌ ' + data.message, 'error');
-            }
-        } catch (error) {
-            showResult('❌ ' + error.message, 'error');
-        }
+    // "Save to Gallery" = trigger an actual browser download. A web app
+    // cannot write into a phone's Gallery/Photos app directly; the browser
+    // download is the real save. On Android, Chrome downloads land in
+    // Downloads and video files are usually picked up by the gallery app.
+    window.saveToGallery = function(filename) {
+        triggerBrowserDownload(filename);
+        showResult('🖼️ File download started — check your device\'s Downloads/Gallery.', 'success');
     };
 
     window.uploadToDrive = async function(filename) {
@@ -430,6 +453,7 @@
             const data = await response.json();
             if (data.status === 'success') {
                 selectedFolderId = folderId;
+                selectedFolderName = folderName;
                 showResult('✅ ' + data.message, 'success');
                 listFolders();
             } else {
@@ -488,7 +512,7 @@
             if (data.status === 'success') {
                 let html = '<strong>✅ ' + data.message + '</strong>';
                 if (data.results) {
-                    const successes = data.results.filter(function(r) { return r.status === 'success'; }).length;
+                    const successes = data.results.filter(function(r) { return r.status === 'success' || r.status === 'partial_success'; }).length;
                     const errors = data.results.filter(function(r) { return r.status === 'error'; }).length;
                     html += '<div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;">';
                     html += '<span style="color:var(--success);">✅ Success: ' + successes + '</span>';
@@ -496,9 +520,15 @@
                     html += '</div>';
                     html += '<div style="margin-top:10px;max-height:200px;overflow-y:auto;">';
                     data.results.forEach(function(r) {
-                        const icon = r.status === 'success' ? '✅' : '❌';
-                        const color = r.status === 'success' ? 'var(--success)' : 'var(--error)';
+                        const icon = r.status === 'error' ? '❌' : (r.status === 'partial_success' ? '⚠️' : '✅');
+                        const color = r.status === 'error' ? 'var(--error)' : (r.status === 'partial_success' ? '#e0a800' : 'var(--success)');
                         html += '<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;color:' + color + ';word-break:break-word;">' + icon + ' ' + r.message + '</div>';
+
+                        // In bulk mode with "gallery" selected, auto-trigger a
+                        // download for each successfully fetched file too.
+                        if (saveTo === 'gallery' && r.filename && (r.status === 'success' || r.status === 'partial_success')) {
+                            triggerBrowserDownload(r.filename);
+                        }
                     });
                     html += '</div>';
                 }
@@ -563,9 +593,9 @@
     if (refreshFoldersBtn) refreshFoldersBtn.addEventListener('click', listFolders);
 
     if (saveGalleryBtn) {
-        saveGalleryBtn.addEventListener('click', async function() {
+        saveGalleryBtn.addEventListener('click', function() {
             if (currentDownload && currentDownload.filename) {
-                await window.saveToGallery(currentDownload.filename);
+                window.saveToGallery(currentDownload.filename);
             } else {
                 showResult('Please download a video first', 'error');
             }
@@ -599,8 +629,8 @@
     // ============================================
     // CONSOLE LOG
     // ============================================
-    console.log('🌿 Social Downloader Pro v2.0 (Dark Green Edition)');
-    console.log('💾 Save options: Local | Gallery | Google Drive');
+    console.log('🌿 Social Downloader Pro v2.1 (Dark Green Edition)');
+    console.log('💾 Save options: Local | Gallery (browser download) | Google Drive');
     console.log('📊 Total downloads:', totalDownloads);
     console.log('🔗 Connect Drive to enable cloud storage');
 
