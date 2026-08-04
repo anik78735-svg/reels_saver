@@ -75,14 +75,47 @@ RAPIDAPI_KEY = os.environ.get('RAPIDAPI_KEY', 'e7e2b4ac57mshf5be36f57ac2478p1511
 # ============================================
 # URL VALIDATION
 # ============================================
-TIKTOK_REGEX = re.compile(r'https?://(www\.|vm\.|vt\.)?tiktok\.com/[@\w\-/]+')
 INSTAGRAM_REGEX = re.compile(r'instagram\.com/([a-zA-Z0-9_\.]+)')
 FACEBOOK_REGEX = re.compile(r'(facebook\.com|fb\.watch|fb\.com)')
 YOUTUBE_REGEX = re.compile(r'(youtube\.com|youtu\.be)')
 TWITTER_REGEX = re.compile(r'(twitter\.com|x\.com)')
 
+# ============================================
+# TIKTOK URL VALIDATION - FIXED
+# ============================================
+
+TIKTOK_REGEX = re.compile(r'https?://(www\.|vm\.|vt\.)?tiktok\.com/(@[\w\-]+/video/[\d]+|@[\w\-]+/v/[\d]+|t/[\w]+|[\w]+)')
+
 def is_valid_tiktok_url(url):
-    return bool(TIKTOK_REGEX.search(url))
+    """Check if URL is a valid TikTok video URL"""
+    # First check regex
+    if not bool(TIKTOK_REGEX.search(url)):
+        return False
+    
+    # Make sure it's not just the homepage
+    if url in ['https://www.tiktok.com', 'https://www.tiktok.com/', 'https://www.tiktok.com/?_r=1']:
+        return False
+    
+    # Must have @username or /video/ or /t/ or vm/vt domain
+    if '@' in url or '/video/' in url or '/v/' in url or '/t/' in url or 'vm.tiktok.com' in url or 'vt.tiktok.com' in url:
+        return True
+    
+    return False
+
+def extract_tiktok_video_id(url):
+    """Extract video ID from TikTok URL"""
+    patterns = [
+        r'/video/(\d+)',
+        r'/v/(\d+)',
+        r'/t/(\w+)',
+        r'vm\.tiktok\.com/(\w+)',
+        r'vt\.tiktok\.com/(\w+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    return None
 
 def is_valid_instagram_url(url):
     return bool(INSTAGRAM_REGEX.search(url))
@@ -286,8 +319,9 @@ drive_manager = GoogleDriveManager()
 # TIKTOK DOWNLOADER - MULTI METHOD
 # ============================================
 # ============================================
-# TIKTOK DOWNLOADER - FIXED
+# TIKTOK DOWNLOADER - COMPLETE FIX
 # ============================================
+
 class TikTokDownloader:
     def __init__(self):
         self.session = requests.Session()
@@ -301,18 +335,34 @@ class TikTokDownloader:
         })
 
     def download(self, url):
+        # Validate URL first
         if not is_valid_tiktok_url(url):
-            return {'status': 'error', 'message': 'Invalid TikTok URL'}
+            return {'status': 'error', 'message': 'Invalid TikTok URL. Use format: https://www.tiktok.com/@username/video/123456789'}
         
-        methods = [self._download_tikwm, self._download_ytdlp, self._download_rapidapi]
+        # Try to resolve short URLs
+        if 'vm.tiktok.com' in url or 'vt.tiktok.com' in url:
+            try:
+                response = self.session.get(url, allow_redirects=True, timeout=10)
+                if response.url != url:
+                    url = response.url
+                    print(f"Resolved to: {url}")
+            except Exception as e:
+                print(f"URL resolution error: {e}")
+        
+        methods = [
+            self._download_tikwm,
+            self._download_ytdlp,
+            self._download_rapidapi,
+            self._download_ssstik,
+        ]
+        
         errors = []
-        
         for method in methods:
             try:
                 print(f"Trying {method.__name__}...")
                 result = method(url)
                 if result and result.get('video_url'):
-                    print(f"{method.__name__} success! Video URL found.")
+                    print(f"{method.__name__} success!")
                     return result
                 elif result and result.get('status') == 'success':
                     print(f"{method.__name__} returned success but no video_url")
@@ -346,17 +396,12 @@ class TikTokDownloader:
                             'thumbnail': video_data.get('cover', ''),
                             'source': 'tikwm'
                         }
-                    else:
-                        print("TikWM: No video_url in response")
-            else:
-                print(f"TikWM: HTTP {response.status_code}")
         except Exception as e:
             print(f"TikWM error: {e}")
         return None
 
     def _download_ytdlp(self, url):
         if yt_dlp is None:
-            print("yt-dlp not installed")
             return None
         try:
             ydl_opts = {
@@ -373,36 +418,18 @@ class TikTokDownloader:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 if info:
-                    print(f"yt-dlp info keys: {list(info.keys())}")
-                    
                     # Try different ways to get video URL
                     video_url = None
                     
-                    # Method 1: Direct url
                     if info.get('url'):
                         video_url = info['url']
-                        print(f"yt-dlp: Found 'url' key")
-                    
-                    # Method 2: Webpage URL (for TikTok)
                     elif info.get('webpage_url'):
-                        # Sometimes webpage_url is the actual video URL
                         video_url = info['webpage_url']
-                        print(f"yt-dlp: Found 'webpage_url' key")
-                    
-                    # Method 3: Format URL
                     elif info.get('formats'):
                         for fmt in info['formats']:
                             if fmt.get('url'):
                                 video_url = fmt['url']
-                                print(f"yt-dlp: Found URL in formats")
                                 break
-                    
-                    # Method 4: Entries (for playlists)
-                    elif info.get('entries'):
-                        entry = info['entries'][0] if info['entries'] else None
-                        if entry and entry.get('url'):
-                            video_url = entry['url']
-                            print(f"yt-dlp: Found URL in entries")
                     
                     if video_url:
                         return {
@@ -415,10 +442,6 @@ class TikTokDownloader:
                             'likes': info.get('like_count', 0),
                             'source': 'ytdlp'
                         }
-                    else:
-                        print(f"yt-dlp: No video URL found. Info: {info}")
-                else:
-                    print("yt-dlp: No info returned")
         except Exception as e:
             print(f"yt-dlp error: {e}")
         return None
@@ -445,10 +468,32 @@ class TikTokDownloader:
                             'author': result['data'].get('author', {}).get('unique_id', 'Unknown'),
                             'source': 'rapidapi'
                         }
-            else:
-                print(f"RapidAPI: HTTP {res.status}")
         except Exception as e:
             print(f"RapidAPI error: {e}")
+        return None
+
+    def _download_ssstik(self, url):
+        try:
+            response = self.session.post(
+                'https://ssstik.io/api',
+                data={'url': url},
+                timeout=30
+            )
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('video'):
+                    return {
+                        'status': 'success',
+                        'video_url': result['video'],
+                        'title': result.get('title', 'TikTok Video'),
+                        'author': result.get('author', 'Unknown'),
+                        'duration': result.get('duration', 0),
+                        'views': result.get('views', 0),
+                        'likes': result.get('likes', 0),
+                        'source': 'ssstik'
+                    }
+        except Exception as e:
+            print(f"SSSTikTok error: {e}")
         return None
 
 tiktok_downloader = TikTokDownloader()
